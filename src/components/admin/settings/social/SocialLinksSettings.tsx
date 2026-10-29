@@ -389,7 +389,7 @@ export default function SocialLinksSettings({ onNotify }: SocialLinksSettingsPro
 
       {/* WHATSAPP SETTINGS SECTION */}
       <div className="p-6 bg-card border border-border/80 rounded-2xl space-y-6 shadow-xs">
-        <div className="border-b border-border/60 pb-4 flex items-center justify-between">
+        <div className="border-b border-border/60 pb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
           <div>
             <h2 className="text-base font-bold text-foreground flex items-center gap-2">
               <MessageCircle size={18} className="text-[#25D366]" />
@@ -399,7 +399,7 @@ export default function SocialLinksSettings({ onNotify }: SocialLinksSettingsPro
               Enter the human-readable display number. The machine/URL-safe WhatsApp number is derived automatically.
             </p>
           </div>
-          <span className="text-[10px] font-bold text-[#25D366] bg-[#25D366]/10 px-2 py-0.5 rounded-md">
+          <span className="text-[10px] font-bold text-[#25D366] bg-[#25D366]/10 px-2 py-0.5 rounded-md self-start sm:self-auto shrink-0 w-fit">
             Auto-Derived URL
           </span>
         </div>

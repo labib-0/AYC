@@ -46,7 +46,7 @@ export default function HoneypotField({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         tabIndex={-1}
-        autoComplete="new-password"
+        autoComplete="off"
         autoCapitalize="off"
         autoCorrect="off"
         spellCheck={false}
@@ -55,6 +55,8 @@ export default function HoneypotField({
         data-bwignore="true"
         data-form-type="other"
         data-protonpass-ignore="true"
+        data-autocomplete="off"
+        data-private="true"
         aria-hidden="true"
         style={{
           opacity: 0,

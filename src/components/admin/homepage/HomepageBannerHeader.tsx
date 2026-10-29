@@ -22,13 +22,13 @@ export default function HomepageBannerHeader({
 }: HomepageBannerHeaderProps) {
   return (
     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-3 border-b border-border/60">
-      <div>
-        <div className="flex items-center gap-2.5">
+      <div className="min-w-0">
+        <div className="flex flex-wrap items-center gap-2.5">
           <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground">
             {title}
           </h1>
           {isDirty && (
-            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
+            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 shrink-0">
               Unsaved Changes
             </span>
           )}
@@ -38,13 +38,16 @@ export default function HomepageBannerHeader({
         </p>
       </div>
 
-      <div className="flex items-center gap-2 shrink-0 flex-wrap">
+      <div
+        data-testid="homepage-banner-header-actions"
+        className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 shrink-0 w-full sm:w-auto self-stretch sm:self-auto"
+      >
         {/* Preview Storefront Action */}
         <a
           href={storefrontUrl}
           target="_blank"
           rel="noopener noreferrer"
-          className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl border border-border bg-card hover:bg-secondary text-muted-foreground hover:text-foreground font-medium text-xs transition-colors cursor-pointer"
+          className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 sm:py-1.5 rounded-xl border border-border bg-card hover:bg-secondary text-muted-foreground hover:text-foreground font-medium text-xs transition-colors cursor-pointer w-full sm:w-auto"
           id="link-preview-storefront"
           title="Open storefront homepage in a new tab"
         >
@@ -58,7 +61,7 @@ export default function HomepageBannerHeader({
             type="button"
             onClick={onReset}
             disabled={isSaving}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-border bg-card hover:bg-secondary text-muted-foreground hover:text-foreground font-medium text-xs transition-colors disabled:opacity-50 cursor-pointer"
+            className="inline-flex items-center justify-center gap-1.5 px-3 py-2 sm:py-1.5 rounded-xl border border-border bg-card hover:bg-secondary text-muted-foreground hover:text-foreground font-medium text-xs transition-colors disabled:opacity-50 cursor-pointer w-full sm:w-auto"
             id="btn-reset-banner"
             title="Discard unsaved local changes"
           >
@@ -72,7 +75,7 @@ export default function HomepageBannerHeader({
           type="button"
           onClick={onSave}
           disabled={!isDirty || isSaving}
-          className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-xl bg-primary text-primary-foreground font-semibold text-xs hover:opacity-90 transition-all shadow-xs disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+          className="inline-flex items-center justify-center gap-1.5 px-4 py-2 sm:py-1.5 rounded-xl bg-primary text-primary-foreground font-semibold text-xs hover:opacity-90 transition-all shadow-xs disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer w-full sm:w-auto"
           id="btn-save-banner"
         >
           {isSaving ? (

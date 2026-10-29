@@ -213,12 +213,33 @@ class ProductController extends ApiController
             }
         }
 
+        // Pricing expression for authoritative lowest customer unit price (multi-tier, bulk, full-stock)
+        $driver = \Illuminate\Support\Facades\DB::connection()->getDriverName();
+        $leastFunc = $driver === 'sqlite' ? 'MIN' : 'LEAST';
+        $boolTrue = $driver === 'pgsql' ? 'bulk_pricing_enabled IS TRUE' : '(bulk_pricing_enabled = 1 OR bulk_pricing_enabled IS TRUE)';
+
+        $effectivePriceSql = "
+            NULLIF(
+              {$leastFunc}(
+                COALESCE(CASE WHEN wholesale_price > 0 THEN wholesale_price END, 999999999),
+                COALESCE((SELECT MIN(ppt.unit_price) FROM product_pricing_tiers ppt WHERE ppt.product_id = products.id AND ppt.unit_price > 0), 999999999),
+                COALESCE(CASE WHEN ({$boolTrue}) AND bulk_price > 0 AND (bulk_threshold IS NULL OR bulk_threshold > COALESCE(moq, 1)) THEN bulk_price END, 999999999),
+                COALESCE(CASE WHEN full_stock_price > 0 AND stock > 0 AND (
+                  CASE WHEN ({$boolTrue}) AND bulk_threshold IS NOT NULL THEN stock > bulk_threshold
+                       ELSE stock >= COALESCE(moq, 1)
+                  END
+                ) THEN full_stock_price END, 999999999)
+              ),
+              999999999
+            )
+        ";
+
         // Price range filtering
         if ($request->filled('price_min')) {
-            $query->where('wholesale_price', '>=', (float) $request->input('price_min'));
+            $query->whereRaw("({$effectivePriceSql}) >= ?", [(float) $request->input('price_min')]);
         }
         if ($request->filled('price_max')) {
-            $query->where('wholesale_price', '<=', (float) $request->input('price_max'));
+            $query->whereRaw("({$effectivePriceSql}) <= ?", [(float) $request->input('price_max')]);
         }
 
         // Color filter
@@ -322,14 +343,14 @@ class ProductController extends ApiController
         if (!$isAdmin) {
             switch ($sortBy) {
                 case 'price_asc':
-                    $query->orderByRaw('CASE WHEN wholesale_price IS NULL OR wholesale_price <= 0 THEN 1 ELSE 0 END ASC')
-                          ->orderBy('wholesale_price', 'asc')
+                    $query->orderByRaw("CASE WHEN ({$effectivePriceSql}) IS NULL OR ({$effectivePriceSql}) <= 0 THEN 1 ELSE 0 END ASC")
+                          ->orderByRaw("({$effectivePriceSql}) ASC")
                           ->orderBy('is_sold_out', 'asc')
                           ->orderBy('id', 'desc');
                     break;
                 case 'price_desc':
-                    $query->orderByRaw('CASE WHEN wholesale_price IS NULL OR wholesale_price <= 0 THEN 1 ELSE 0 END ASC')
-                          ->orderBy('wholesale_price', 'desc')
+                    $query->orderByRaw("CASE WHEN ({$effectivePriceSql}) IS NULL OR ({$effectivePriceSql}) <= 0 THEN 1 ELSE 0 END ASC")
+                          ->orderByRaw("({$effectivePriceSql}) DESC")
                           ->orderBy('is_sold_out', 'asc')
                           ->orderBy('id', 'desc');
                     break;
@@ -347,12 +368,12 @@ class ProductController extends ApiController
                           ->orderBy('id', 'desc');
                     break;
                 case 'name_asc':
-                    $query->orderBy('name', 'asc')
+                    $query->orderByRaw('LOWER(TRIM(name)) ASC')
                           ->orderBy('is_sold_out', 'asc')
                           ->orderBy('id', 'desc');
                     break;
                 case 'name_desc':
-                    $query->orderBy('name', 'desc')
+                    $query->orderByRaw('LOWER(TRIM(name)) DESC')
                           ->orderBy('is_sold_out', 'asc')
                           ->orderBy('id', 'desc');
                     break;
@@ -386,20 +407,24 @@ class ProductController extends ApiController
 
             switch ($sortBy) {
                 case 'price_asc':
-                    $query->orderBy('wholesale_price', 'asc');
+                    $query->orderByRaw("CASE WHEN ({$effectivePriceSql}) IS NULL OR ({$effectivePriceSql}) <= 0 THEN 1 ELSE 0 END ASC")
+                          ->orderByRaw("({$effectivePriceSql}) ASC")
+                          ->orderBy('id', 'desc');
                     break;
                 case 'price_desc':
-                    $query->orderBy('wholesale_price', 'desc');
+                    $query->orderByRaw("CASE WHEN ({$effectivePriceSql}) IS NULL OR ({$effectivePriceSql}) <= 0 THEN 1 ELSE 0 END ASC")
+                          ->orderByRaw("({$effectivePriceSql}) DESC")
+                          ->orderBy('id', 'desc');
                     break;
                 case 'popular':
                 case 'hot':
                     $query->orderBy('is_hot', 'desc')->orderBy('created_at', 'desc');
                     break;
                 case 'name_asc':
-                    $query->orderBy('name', 'asc');
+                    $query->orderByRaw('LOWER(TRIM(name)) ASC')->orderBy('id', 'desc');
                     break;
                 case 'name_desc':
-                    $query->orderBy('name', 'desc');
+                    $query->orderByRaw('LOWER(TRIM(name)) DESC')->orderBy('id', 'desc');
                     break;
                 case 'manual':
                 case 'sort_order':

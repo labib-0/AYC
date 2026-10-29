@@ -260,6 +260,12 @@ export class OrderService {
    * Create an order
    */
   async createOrder(input: CreateOrderInput): Promise<OrderRecord> {
+    // Anti-bot Honeypot validation (both mock and real modes safeguard against automated abuse)
+    const honeypotVal = input.website_url_hp ?? (input as any)?.website_hp;
+    if (honeypotVal && typeof honeypotVal === "string" && honeypotVal.trim().length > 0) {
+      throw new ApiError(422, "Automated form submission detected.");
+    }
+
     if (!isFrontendOnly()) {
       const headers: Record<string, string> = {};
       if (input.idempotencyKey) {
@@ -283,12 +289,6 @@ export class OrderService {
         return this.normalizeOrderRecord(data);
       }
       throw new Error("Invalid response received from order creation endpoint.");
-    }
-
-    // Anti-bot Honeypot validation (both mock and real modes safeguard against automated abuse)
-    const honeypotVal = input.website_url_hp ?? (input as any)?.website_hp;
-    if (honeypotVal && typeof honeypotVal === "string" && honeypotVal.trim().length > 0) {
-      throw new ApiError(422, "Automated form submission detected.");
     }
 
     // Cart validation

@@ -442,13 +442,13 @@ export default function GlobalFilterRail({
   return (
     <>
       {/* ── Desktop Left Rail (lg: >= 1024px): Outer Column + Inner Sticky Panel ── */}
-      <div className="filter-column hidden lg:block w-full shrink-0">
+      <div className="filter-column hidden lg:block w-full shrink-0 self-start">
         <aside
           className="filter-panel sticky top-[84px] w-full bg-card border border-border/80 rounded-2xl p-4 shadow-xs font-sans max-h-[calc(100vh-100px)] flex flex-col"
           aria-label="Product Filters"
         >
           {panelHeader(false)}
-          <div className="overflow-y-auto flex-1 pr-1.5 subtle-scrollbar overscroll-contain">
+          <div className="overflow-y-auto flex-1 min-h-0 pr-1.5 filter-scrollbar overscroll-contain">
             {filterContent}
           </div>
         </aside>

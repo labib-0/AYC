@@ -112,6 +112,7 @@ export default function CategoryToolbar({
         <button
           type="button"
           id="btn-refresh-categories"
+          data-testid="btn-refresh-categories"
           onClick={onRefresh}
           disabled={isRefreshing}
           className="p-2 rounded-xl border border-border bg-card hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors cursor-pointer disabled:opacity-50 shrink-0"

@@ -124,11 +124,11 @@ export default function CouponTable({
       </div>
 
       {/* Mobile Stacked Card View */}
-      <div className="md:hidden divide-y divide-border/60">
+      <div className="md:hidden divide-y divide-border/60" data-testid="coupons-mobile-cards">
         {coupons.map((coupon) => {
           const isPercentage = coupon.discount_type === "percentage";
           return (
-            <div key={coupon.id} className="p-4 space-y-3">
+            <div key={coupon.id} className="p-4 space-y-3" data-testid={`coupon-card-${coupon.id}`}>
               <div className="flex items-start justify-between gap-2">
                 <div className="space-y-1 min-w-0 flex-1">
                   <span className="font-mono font-bold text-xs text-foreground tracking-wider px-2 py-0.5 rounded bg-secondary border border-border break-all inline-block">

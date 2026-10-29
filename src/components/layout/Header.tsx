@@ -316,7 +316,27 @@ function HeaderContent() {
               onClick={() => setIsLocationOpen(true)}
               aria-label={`Deliver to ${preferences.country}`}
             >
-              <span className="text-lg xl:text-xl leading-none shrink-0">{preferences.flag}</span>
+              {preferences.countryCode && preferences.countryCode.length === 2 ? (
+                <span className="relative flex items-center justify-center shrink-0 w-5 h-3.5 xl:w-5.5 xl:h-4 rounded-xs overflow-hidden shadow-2xs border border-white/10">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={`https://flagcdn.com/w40/${preferences.countryCode.toLowerCase()}.png`}
+                    alt={`${preferences.countryCode} flag`}
+                    className="w-full h-full object-cover"
+                    loading="lazy"
+                    onError={(e) => {
+                      (e.currentTarget as HTMLElement).style.display = "none";
+                      const fallback = e.currentTarget.parentElement?.querySelector(".flag-emoji-fallback");
+                      if (fallback) (fallback as HTMLElement).style.display = "inline";
+                    }}
+                  />
+                  <span className="flag-emoji-fallback text-base leading-none hidden">
+                    {preferences.flag}
+                  </span>
+                </span>
+              ) : (
+                <span className="text-lg xl:text-xl leading-none shrink-0">{preferences.flag}</span>
+              )}
               <div className="flex flex-col leading-tight justify-center text-left">
                 <span className="text-[10px] xl:text-[11px] text-white/50 uppercase tracking-wide whitespace-nowrap">
                   Deliver to:

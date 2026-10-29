@@ -1,0 +1,178 @@
+{
+  "summary": {
+    "total": 20,
+    "passed": 20,
+    "failed": 0
+  },
+  "checks": [
+    {
+      "name": "Issue #30: Homepage header action buttons positioned directly below title on mobile",
+      "pass": true,
+      "details": {
+        "titleBottom": 134.65625,
+        "actionsTop": 168.65625,
+        "actionsFlexDir": "column",
+        "isStackedBelowTitle": true,
+        "saveBtnWidth": 358,
+        "previewBtnWidth": 358,
+        "containerWidth": 358,
+        "docOverflow": false
+      }
+    },
+    {
+      "name": "Issue #30: Homepage header actions use flex-col on mobile (390px)",
+      "pass": true,
+      "details": {
+        "flexDir": "column"
+      }
+    },
+    {
+      "name": "Issue #30: Zero document horizontal overflow on mobile (390px)",
+      "pass": true,
+      "details": {
+        "docOverflow": false
+      }
+    },
+    {
+      "name": "Issue #28: SEO status badge is positioned below title on mobile",
+      "pass": true,
+      "details": {
+        "badgeText": "Configured on Storefront",
+        "isBadgeStacked": true
+      }
+    },
+    {
+      "name": "Issue #28: SEO action buttons stack vertically below title on mobile",
+      "pass": true,
+      "details": {
+        "badgeText": "Configured on Storefront",
+        "isBadgeStackedBelowTitle": true,
+        "isActionsStackedBelowTitle": true,
+        "actionsFlexDir": "column",
+        "saveBtnFullWidth": true,
+        "docOverflow": false
+      }
+    },
+    {
+      "name": "Issue #28: Zero horizontal overflow on 320px minimum viewport",
+      "pass": true,
+      "details": {
+        "docOverflow": false,
+        "scrollWidth": 320,
+        "innerWidth": 320
+      }
+    },
+    {
+      "name": "Issue #29: Google Tags Head & Body configured badges stack vertically on mobile",
+      "pass": true,
+      "details": {
+        "badge1": "Head: Configured",
+        "badge2": "Body: Configured",
+        "stacked": true
+      }
+    },
+    {
+      "name": "Issue #29 & #43: Google Tags action buttons stack vertically on mobile (flex-col w-full)",
+      "pass": true,
+      "details": {
+        "flexDir": "column",
+        "actionsStacked": true
+      }
+    },
+    {
+      "name": "Issue #43: Google Tags editor tabs stack vertically on mobile without tab squeezing",
+      "pass": true,
+      "details": {
+        "tabsFlexDir": "column",
+        "tabsStacked": true
+      }
+    },
+    {
+      "name": "Issue #43: Google Tags Body Code tab switches cleanly and renders isolated textarea",
+      "pass": true,
+      "details": {
+        "activeTabPresent": true,
+        "bodyTextAreaPresent": true,
+        "bodyTextAreaLines": 2
+      }
+    },
+    {
+      "name": "Issue #17: Admin Dashboard mobile layout contains overflow (scrollWidth === innerWidth)",
+      "pass": true,
+      "details": {
+        "docOverflow": false,
+        "scrollWidth": 390,
+        "innerWidth": 390,
+        "salesOverviewHandled": false
+      }
+    },
+    {
+      "name": "Issue #37: WhatsApp & Social Settings reflow cleanly on mobile with zero document overflow",
+      "pass": true,
+      "details": {
+        "docOverflow": false,
+        "hasWhatsAppHeader": true,
+        "hasDerivedUrl": true
+      }
+    },
+    {
+      "name": "Issue #38: Company Identity & Exporter Name layout conforms without mobile overflow",
+      "pass": true,
+      "details": {
+        "hasCompanyHeader": true
+      }
+    },
+    {
+      "name": "Issue #39: Beneficiary Bank Wire 3-Currency Profiles render with stacked mobile actions",
+      "pass": true,
+      "details": {
+        "hasBankHeader": true,
+        "hasDefaultProfile": true
+      }
+    },
+    {
+      "name": "Issue #40: Document Logistics & Legal Defaults section conforms without mobile overflow",
+      "pass": true,
+      "details": {
+        "hasDocumentDefaults": true
+      }
+    },
+    {
+      "name": "Issue #42: Operational Currency / USD badge reflows cleanly without mobile overflow",
+      "pass": true,
+      "details": {
+        "docOverflow": false,
+        "hasCurrencyHeader": true,
+        "usdBadgeText": "USD Export Standard"
+      }
+    },
+    {
+      "name": "Desktop Control: Header actions reflow horizontally on desktop (sm:flex-row)",
+      "pass": true,
+      "details": {
+        "flexDir": "row"
+      }
+    },
+    {
+      "name": "Desktop Control: SEO actions reflow horizontally on desktop (sm:flex-row)",
+      "pass": true,
+      "details": {
+        "flexDir": "row"
+      }
+    },
+    {
+      "name": "Desktop Control: Google Tags actions reflow horizontally on desktop (sm:flex-row)",
+      "pass": true,
+      "details": {
+        "flexDir": "row"
+      }
+    },
+    {
+      "name": "Desktop Control: Google Tags tabs reflow horizontally on desktop (sm:flex-row)",
+      "pass": true,
+      "details": {
+        "flexDir": "row"
+      }
+    }
+  ]
+}

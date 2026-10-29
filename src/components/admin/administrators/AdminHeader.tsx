@@ -58,6 +58,8 @@ export default function AdminHeader({
           <button
             type="button"
             onClick={onAddAdmin}
+            id="btn-create-admin"
+            data-testid="btn-create-admin"
             className="flex items-center gap-2 px-4 py-2 rounded-xl bg-foreground text-background hover:opacity-90 text-xs font-bold uppercase tracking-wider shadow-sm transition-all cursor-pointer"
           >
             <UserPlus size={15} />

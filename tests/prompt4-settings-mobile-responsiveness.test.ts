@@ -110,8 +110,9 @@ describe("Prompt 4 Hotfix Regression Suite (Issues #37 & #38 — Admin Settings 
         "GoogleTagsManager head and body action bars must use flex-col sm:flex-row"
       );
       assert.ok(
-        googleTagsSource.includes("flex flex-wrap items-center gap-2 self-start sm:self-auto shrink-0 w-full sm:w-auto"),
-        "GoogleTagsManager header action buttons must wrap cleanly on mobile"
+        googleTagsSource.includes("data-testid=\"google-tags-actions\"") ||
+        googleTagsSource.includes("flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto"),
+        "GoogleTagsManager header action buttons must wrap and stack cleanly on mobile"
       );
     });
   });

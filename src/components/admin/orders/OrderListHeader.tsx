@@ -30,6 +30,7 @@ export default function OrderListHeader({
           title="Refresh orders"
           aria-label="Refresh orders"
           id="btn-refresh-orders"
+          data-testid="btn-refresh-orders"
         >
           <RefreshCw size={14} className={isLoading ? "animate-spin text-primary" : ""} />
           <span>{isLoading ? "Refreshing..." : "Refresh"}</span>

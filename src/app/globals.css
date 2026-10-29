@@ -262,6 +262,25 @@
   }
 }
 
+@utility filter-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, currentColor 28%, transparent) color-mix(in srgb, currentColor 5%, transparent);
+  &::-webkit-scrollbar {
+    width: 6px;
+  }
+  &::-webkit-scrollbar-track {
+    background: color-mix(in srgb, currentColor 4%, transparent);
+    border-radius: 9999px;
+  }
+  &::-webkit-scrollbar-thumb {
+    background: color-mix(in srgb, currentColor 28%, transparent);
+    border-radius: 9999px;
+  }
+  &::-webkit-scrollbar-thumb:hover {
+    background: color-mix(in srgb, currentColor 50%, transparent);
+  }
+}
+
 @utility aspect-product {
   aspect-ratio: var(--product-image-ratio, 3 / 4);
 }

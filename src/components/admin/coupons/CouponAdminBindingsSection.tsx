@@ -146,9 +146,10 @@ export default function CouponAdminBindingsSection({
         </div>
       </div>
 
-      {/* Bindings Table */}
+      {/* Bindings Table & Mobile Cards */}
       <div className="bg-card border border-border rounded-xl overflow-hidden shadow-2xs min-w-0 w-full">
-        <div className="overflow-x-auto subtle-scrollbar w-full min-w-0">
+        {/* Desktop Table View */}
+        <div className="hidden md:block overflow-x-auto subtle-scrollbar w-full min-w-0">
           <table className="w-full text-left border-collapse text-xs min-w-[560px]">
             <thead>
               <tr className="border-b border-border/80 bg-secondary/30 text-muted-foreground font-semibold uppercase tracking-wider text-[11px]">
@@ -319,6 +320,141 @@ export default function CouponAdminBindingsSection({
             </tbody>
           </table>
         </div>
+
+        {/* Mobile Stacked Card View */}
+        {loading ? (
+          <div className="md:hidden p-4 space-y-3">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <div key={i} className="h-24 bg-secondary/50 rounded-xl animate-pulse" />
+            ))}
+          </div>
+        ) : filteredBindings.length === 0 ? (
+          <div className="md:hidden p-8 text-center">
+            <div className="p-3 rounded-2xl bg-secondary/50 text-muted-foreground mb-2 inline-block">
+              <Tag size={24} />
+            </div>
+            <p className="font-semibold text-foreground text-xs">No Coupon Bindings Found</p>
+            <p className="text-[11px] text-muted-foreground mt-0.5">
+              {search ? "No bindings match your search query." : "Bind a coupon to an administrator to grant scoped sales attribution."}
+            </p>
+            {!search && (
+              <button
+                type="button"
+                onClick={() => setIsBindModalOpen(true)}
+                className="mt-3 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary text-primary-foreground font-medium text-xs hover:opacity-90 transition-opacity"
+              >
+                <Plus size={13} />
+                <span>Create First Binding</span>
+              </button>
+            )}
+          </div>
+        ) : (
+          <div className="md:hidden divide-y divide-border/60" data-testid="coupon-bindings-mobile-cards">
+            {filteredBindings.map((binding) => {
+              const admin = binding.adminUser || binding.admin_user;
+              const coupon = binding.coupon;
+              const isUnbinding = unbindingId === binding.id;
+              const isConfirming = confirmUnbindId === binding.id;
+              const isActive = coupon?.is_active ?? true;
+              const isExpired = coupon?.expires_at ? new Date(coupon.expires_at) < new Date() : false;
+
+              return (
+                <div key={binding.id} className="p-4 space-y-3" data-testid={`binding-card-${binding.id}`}>
+                  {/* Header: Admin Info & Status */}
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                      <div className="p-1.5 rounded-lg bg-primary/10 text-primary shrink-0">
+                        <UserCheck size={14} />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="font-semibold text-foreground text-xs truncate">
+                          {admin?.name || `Admin #${binding.admin_user_id}`}
+                        </div>
+                        <div className="text-[11px] text-muted-foreground truncate font-mono">
+                          {admin?.email || "—"}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="shrink-0">
+                      {isExpired ? (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
+                          <Clock size={11} />
+                          <span>Expired</span>
+                        </span>
+                      ) : isActive ? (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                          <CheckCircle2 size={11} />
+                          <span>Active</span>
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-zinc-500/10 text-zinc-600 dark:text-zinc-400 border border-zinc-500/20">
+                          <XCircle size={11} />
+                          <span>Inactive</span>
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Coupon Info Box */}
+                  <div className="flex items-center justify-between gap-2 p-2.5 rounded-xl bg-secondary/30 border border-border/60 text-xs">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className="font-mono font-bold text-foreground truncate">
+                        {coupon?.code || `Coupon #${binding.coupon_id}`}
+                      </span>
+                      {coupon && (
+                        <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-secondary text-secondary-foreground font-medium shrink-0">
+                          {coupon.discount_type === "percentage"
+                            ? `${coupon.discount_value}% OFF`
+                            : `$${Number(coupon.discount_value).toFixed(2)} OFF`}
+                        </span>
+                      )}
+                    </div>
+                    <span className="text-[11px] text-muted-foreground font-mono shrink-0">
+                      {formatDate(binding.created_at)}
+                    </span>
+                  </div>
+
+                  {/* Actions Row */}
+                  <div className="flex items-center justify-end gap-2 pt-1 border-t border-border/40">
+                    {isConfirming ? (
+                      <div className="inline-flex items-center gap-2 w-full justify-end">
+                        <span className="text-[11px] text-destructive font-semibold">Confirm removal?</span>
+                        <button
+                          type="button"
+                          onClick={() => handleUnbind(binding.id)}
+                          disabled={isUnbinding}
+                          className="px-3 py-1.5 min-h-[36px] text-xs font-bold rounded-lg bg-destructive text-destructive-foreground hover:opacity-90 transition-opacity disabled:opacity-50 inline-flex items-center justify-center cursor-pointer"
+                          id={`btn-confirm-unbind-mobile-${binding.id}`}
+                        >
+                          {isUnbinding ? <Loader2 size={12} className="animate-spin" /> : "Unbind"}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setConfirmUnbindId(null)}
+                          disabled={isUnbinding}
+                          className="px-3 py-1.5 min-h-[36px] text-xs rounded-lg border border-border text-muted-foreground hover:bg-secondary transition-colors inline-flex items-center justify-center cursor-pointer"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => setConfirmUnbindId(binding.id)}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 min-h-[36px] text-xs font-medium rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 border border-border/60 hover:border-destructive/20 transition-all cursor-pointer"
+                        id={`btn-unbind-mobile-${binding.id}`}
+                      >
+                        <Trash2 size={13} />
+                        <span>Unbind Administrator</span>
+                      </button>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {/* Bind Modal */}

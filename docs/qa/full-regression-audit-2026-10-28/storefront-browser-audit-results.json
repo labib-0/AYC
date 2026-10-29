@@ -1,0 +1,383 @@
+{
+  "timestamp": "2026-10-27T23:52:50.666Z",
+  "summary": {
+    "totalChecks": 22,
+    "passed": 18,
+    "failed": 2,
+    "info": 2
+  },
+  "consoleErrorsCount": 60,
+  "failedRequestsCount": 259,
+  "auditLog": [
+    {
+      "category": "Viewport Responsiveness",
+      "id": "VP-HOME-MOBILE_320",
+      "title": "Homepage renders at 320x720 without horizontal overflow",
+      "verdict": "PASS",
+      "timestamp": "2026-10-27T23:52:18.060Z",
+      "details": {
+        "httpStatus": 200,
+        "viewport": "320x720",
+        "docWidth": 320,
+        "winWidth": 320,
+        "hasOverflow": false,
+        "headerHeight": 107,
+        "screenshot": "prod_homepage_mobile_320.png"
+      }
+    },
+    {
+      "category": "Viewport Responsiveness",
+      "id": "VP-HOME-MOBILE_375",
+      "title": "Homepage renders at 375x812 without horizontal overflow",
+      "verdict": "PASS",
+      "timestamp": "2026-10-27T23:52:19.505Z",
+      "details": {
+        "httpStatus": 200,
+        "viewport": "375x812",
+        "docWidth": 375,
+        "winWidth": 375,
+        "hasOverflow": false,
+        "headerHeight": 107,
+        "screenshot": "prod_homepage_mobile_375.png"
+      }
+    },
+    {
+      "category": "Viewport Responsiveness",
+      "id": "VP-HOME-TABLET_PORTRAIT_768",
+      "title": "Homepage renders at 768x1024 without horizontal overflow",
+      "verdict": "PASS",
+      "timestamp": "2026-10-27T23:52:20.939Z",
+      "details": {
+        "httpStatus": 200,
+        "viewport": "768x1024",
+        "docWidth": 768,
+        "winWidth": 768,
+        "hasOverflow": false,
+        "headerHeight": 107,
+        "screenshot": "prod_homepage_tablet_portrait_768.png"
+      }
+    },
+    {
+      "category": "Viewport Responsiveness",
+      "id": "VP-HOME-TABLET_LANDSCAPE_1024",
+      "title": "Homepage renders at 1024x768 without horizontal overflow",
+      "verdict": "PASS",
+      "timestamp": "2026-10-27T23:52:22.418Z",
+      "details": {
+        "httpStatus": 200,
+        "viewport": "1024x768",
+        "docWidth": 1024,
+        "winWidth": 1024,
+        "hasOverflow": false,
+        "headerHeight": 69,
+        "screenshot": "prod_homepage_tablet_landscape_1024.png"
+      }
+    },
+    {
+      "category": "Viewport Responsiveness",
+      "id": "VP-HOME-DESKTOP_1440",
+      "title": "Homepage renders at 1440x900 without horizontal overflow",
+      "verdict": "PASS",
+      "timestamp": "2026-10-27T23:52:24.007Z",
+      "details": {
+        "httpStatus": 200,
+        "viewport": "1440x900",
+        "docWidth": 1440,
+        "winWidth": 1440,
+        "hasOverflow": false,
+        "headerHeight": 69,
+        "screenshot": "prod_homepage_desktop_1440.png"
+      }
+    },
+    {
+      "category": "Header & Navigation",
+      "id": "HDR-DESKTOP-LAYOUT",
+      "title": "Desktop header renders logo, search bar, cart, wishlist, and location buttons",
+      "verdict": "PASS",
+      "timestamp": "2026-10-27T23:52:25.128Z",
+      "details": {
+        "hasLogo": true,
+        "hasSearchInput": true,
+        "hasCartIcon": true,
+        "hasLocationBtn": true,
+        "hasWishlistBtn": true,
+        "hasSignInBtn": true
+      }
+    },
+    {
+      "category": "Header & Navigation",
+      "id": "HDR-MOBILE-DRAWER",
+      "title": "Mobile hamburger menu opens navigation drawer with category taxonomy",
+      "verdict": "PASS",
+      "timestamp": "2026-10-27T23:52:26.951Z",
+      "details": {
+        "hasMenuBtn": true,
+        "drawerVisible": true,
+        "visibleLinksCount": 149,
+        "screenshot": "prod_mobile_drawer_open_375.png"
+      }
+    },
+    {
+      "category": "Search & Discovery",
+      "id": "SEARCH-SUGGESTIONS",
+      "title": "Typing query 'shirt' displays dynamic product suggestions in dropdown overlay",
+      "verdict": "PASS",
+      "timestamp": "2026-10-27T23:52:30.001Z",
+      "details": {
+        "inputValue": "shirt",
+        "suggestionCount": 90,
+        "suggestionTexts": [
+          "Mens long sleeve shirts$4.50MOQ 200",
+          "Girls' Long Sleeve Cropped Terry Sweatshirt$2.20MOQ 419",
+          "Adult girls T-shirt$1.20MOQ 500"
+        ],
+        "screenshot": "prod_search_suggestions_desktop.png"
+      }
+    },
+    {
+      "category": "Search & Sorting",
+      "id": "SORT-NEWEST",
+      "title": "Sorting by 'Newest First' produces deterministic product sequence",
+      "verdict": "PASS",
+      "timestamp": "2026-10-27T23:52:31.672Z",
+      "details": {
+        "sortParam": "newest",
+        "itemsCount": 1,
+        "orderValid": true,
+        "sampleItems": [
+          {
+            "name": "MEN'S S/S T-Shirt3",
+            "priceText": "MEN'S S/S T-Shirt3",
+            "price": 3
+          }
+        ]
+      }
+    },
+    {
+      "category": "Search & Sorting",
+      "id": "SORT-PRICE_ASC",
+      "title": "Sorting by 'Price: Low to High' produces deterministic product sequence",
+      "verdict": "PASS",
+      "timestamp": "2026-10-27T23:52:33.385Z",
+      "details": {
+        "sortParam": "price_asc",
+        "itemsCount": 0,
+        "orderValid": true,
+        "sampleItems": []
+      }
+    },
+    {
+      "category": "Search & Sorting",
+      "id": "SORT-PRICE_DESC",
+      "title": "Sorting by 'Price: High to Low' produces deterministic product sequence",
+      "verdict": "PASS",
+      "timestamp": "2026-10-27T23:52:35.204Z",
+      "details": {
+        "sortParam": "price_desc",
+        "itemsCount": 2,
+        "orderValid": true,
+        "sampleItems": [
+          {
+            "name": "MEN'S S/S T-Shirt3",
+            "priceText": "MEN'S S/S T-Shirt3",
+            "price": 3
+          },
+          {
+            "name": "Men’s 2-Piece Short Sleeve T-Shirt & Shorts Pajama Set",
+            "priceText": "Men’s 2-Piece Short Sleeve T-Shirt & Shorts Pajama Set",
+            "price": 2
+          }
+        ]
+      }
+    },
+    {
+      "category": "Search & Sorting",
+      "id": "SORT-NAME_ASC",
+      "title": "Sorting by 'Name: A to Z' produces deterministic product sequence",
+      "verdict": "PASS",
+      "timestamp": "2026-10-27T23:52:36.922Z",
+      "details": {
+        "sortParam": "name_asc",
+        "itemsCount": 0,
+        "orderValid": true,
+        "sampleItems": []
+      }
+    },
+    {
+      "category": "Search & Sorting",
+      "id": "SORT-NAME_DESC",
+      "title": "Sorting by 'Name: Z to A' produces deterministic product sequence",
+      "verdict": "PASS",
+      "timestamp": "2026-10-27T23:52:38.819Z",
+      "details": {
+        "sortParam": "name_desc",
+        "itemsCount": 1,
+        "orderValid": true,
+        "sampleItems": [
+          {
+            "name": "Men’s 2-Piece Short Sleeve T-Shirt & Shorts Pajama Set",
+            "priceText": "Men’s 2-Piece Short Sleeve T-Shirt & Shorts Pajama Set",
+            "price": 2
+          }
+        ]
+      }
+    },
+    {
+      "category": "Language & Translation",
+      "id": "LANG-LOCAL-REMOVAL",
+      "title": "Local code has completely removed internal language switching & declares lang='en'",
+      "verdict": "PASS",
+      "timestamp": "2026-10-27T23:52:39.784Z",
+      "details": {
+        "htmlLang": "en",
+        "htmlDir": "ltr",
+        "hasTranslateNo": false,
+        "hasNotranslateMeta": false,
+        "languageSelectorsFound": 0,
+        "hasBengaliToggles": false
+      }
+    },
+    {
+      "category": "Language & Translation",
+      "id": "LANG-PROD-DEPLOYMENT-STATUS",
+      "title": "Production deployment status of language switcher removal",
+      "verdict": "INFO",
+      "timestamp": "2026-10-27T23:52:40.825Z",
+      "details": {
+        "finding": "Feature removal is present locally in working tree; NOT yet deployed to production.",
+        "prodHtmlLang": "en",
+        "prodSelectorsFound": 3,
+        "prodHasBengali": false
+      }
+    },
+    {
+      "category": "Product Detail Page",
+      "id": "PDP-MENS-SHORT-SLEEVE-SHIRT-02",
+      "title": "PDP for Canonical 4:5 Garment (mens-short-sleeve-shirt-02) renders metadata, 4:5 frame, and object-contain",
+      "verdict": "PASS",
+      "timestamp": "2026-10-27T23:52:42.473Z",
+      "details": {
+        "product": "mens-short-sleeve-shirt-02",
+        "title": "Men's short sleeve shirt",
+        "hasTitle": true,
+        "objectFit": "contain",
+        "isTransparent": true,
+        "containerAspect": "1.33",
+        "imageFound": true,
+        "overlayBounds": {
+          "brandLeft": 490,
+          "brandRight": 540,
+          "imageLeft": 33,
+          "imageRight": 357,
+          "insideImageHorizontally": false
+        },
+        "screenshot": "prod_pdp_mens-short-sleeve-shirt-02_1440.png"
+      }
+    },
+    {
+      "category": "Product Detail Page",
+      "id": "PDP-LC-WAIKIKI-KIDS-BRUSHED-TERRY-TROUSERS-WHOLESALE",
+      "title": "PDP for Square / Kids Garment (lc-waikiki-kids-brushed-terry-trousers-wholesale) renders metadata, 4:5 frame, and object-contain",
+      "verdict": "FAIL",
+      "timestamp": "2026-10-27T23:52:43.945Z",
+      "details": {
+        "product": "lc-waikiki-kids-brushed-terry-trousers-wholesale",
+        "title": "Boys and Girls Trousers",
+        "hasTitle": true,
+        "objectFit": null,
+        "isTransparent": false,
+        "containerAspect": null,
+        "imageFound": false,
+        "overlayBounds": null,
+        "screenshot": "prod_pdp_lc-waikiki-kids-brushed-terry-trousers-wholesale_1440.png"
+      }
+    },
+    {
+      "category": "Product Detail Page",
+      "id": "PDP-LADIES-PALAZZO",
+      "title": "PDP for Ladies Fashion Garment (ladies-palazzo) renders metadata, 4:5 frame, and object-contain",
+      "verdict": "PASS",
+      "timestamp": "2026-10-27T23:52:45.395Z",
+      "details": {
+        "product": "ladies-palazzo",
+        "title": "Ladies' Palazzo",
+        "hasTitle": true,
+        "objectFit": "contain",
+        "isTransparent": true,
+        "containerAspect": "1.33",
+        "imageFound": true,
+        "overlayBounds": {
+          "brandLeft": 462,
+          "brandRight": 534,
+          "imageLeft": 33,
+          "imageRight": 357,
+          "insideImageHorizontally": false
+        },
+        "screenshot": "prod_pdp_ladies-palazzo_1440.png"
+      }
+    },
+    {
+      "category": "Product Detail Page",
+      "id": "PDP-LADIES-THONG-PANTIES-WOMENS-UNDERWEAR-01",
+      "title": "PDP for High Volume Stocklot (ladies-thong-panties-womens-underwear-01) renders metadata, 4:5 frame, and object-contain",
+      "verdict": "PASS",
+      "timestamp": "2026-10-27T23:52:46.812Z",
+      "details": {
+        "product": "ladies-thong-panties-womens-underwear-01",
+        "title": "Ladies’ Thong Panties / Women’s Underwear",
+        "hasTitle": true,
+        "objectFit": "contain",
+        "isTransparent": true,
+        "containerAspect": "1.33",
+        "imageFound": true,
+        "overlayBounds": {
+          "brandLeft": 479,
+          "brandRight": 551,
+          "imageLeft": 33,
+          "imageRight": 357,
+          "insideImageHorizontally": false
+        },
+        "screenshot": "prod_pdp_ladies-thong-panties-womens-underwear-01_1440.png"
+      }
+    },
+    {
+      "category": "Product Detail Page",
+      "id": "PDP-MOBILE-375",
+      "title": "PDP on mobile 375px renders cleanly without overflow",
+      "verdict": "PASS",
+      "timestamp": "2026-10-27T23:52:48.031Z",
+      "details": {
+        "docWidth": 375,
+        "winWidth": 375,
+        "hasHorizontalOverflow": false,
+        "screenshot": "prod_pdp_mobile_375.png"
+      }
+    },
+    {
+      "category": "Cart Presentation",
+      "id": "CART-BADGE-LINE-COUNT",
+      "title": "Cart badge reflects 2 unique line items (NOT 450 total units)",
+      "verdict": "FAIL",
+      "timestamp": "2026-10-27T23:52:49.597Z",
+      "details": {
+        "badgeText": "",
+        "expected": "2",
+        "historicalBugValue": "450",
+        "isFixed": false,
+        "screenshot": "prod_cart_badge_fixture_1440.png"
+      }
+    },
+    {
+      "category": "Wishlist Presentation",
+      "id": "WISHLIST-PAGE-INSPECTION",
+      "title": "Wishlist page inspects refresh button and layout",
+      "verdict": "INFO",
+      "timestamp": "2026-10-27T23:52:50.664Z",
+      "details": {
+        "url": "https://ayaanclothing.com/account/wishlist",
+        "hasRefreshBtn": false,
+        "titleText": "Shopping Cart"
+      }
+    }
+  ]
+}

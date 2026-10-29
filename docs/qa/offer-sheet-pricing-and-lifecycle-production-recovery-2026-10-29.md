@@ -224,3 +224,4 @@ npm run build
 | [os_prod18_page-2.png](file:///Users/labibhasan/.gemini/antigravity/brain/ab6734a5-b698-4e7d-8732-c8fdfa7fbc81/os_prod18_page-2.png) | Live Product #18 Continuation Page with `PRODUCT GALLERY` heading |
 | [offer-sheet.ts](file:///Users/labibhasan/Documents/AYC/src/lib/offer-sheet.ts) | Harmonized pricing tier parser matching backend rules |
 | [offer-sheet-production-pricing-recovery.test.ts](file:///Users/labibhasan/Documents/AYC/tests/offer-sheet-production-pricing-recovery.test.ts) | Automated recovery test suite |
+

@@ -216,6 +216,7 @@ export default function AdminTable({
                           onClick={() => onEdit(admin)}
                           className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
                           title="Edit Administrator"
+                          data-testid={`btn-edit-admin-${admin.id}`}
                         >
                           <Edit3 size={14} />
                         </button>

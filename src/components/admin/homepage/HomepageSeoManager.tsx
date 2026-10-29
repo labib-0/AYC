@@ -248,22 +248,28 @@ export function HomepageSeoManager({
       <div className="bg-card rounded-2xl border border-border/80 p-4 sm:p-6 shadow-2xs space-y-5">
         {/* Section Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-border/60 pb-4">
-          <div className="flex items-start sm:items-center gap-3">
+          <div className="flex items-start sm:items-center gap-3 min-w-0">
             <div className="w-8 h-8 rounded-lg bg-sky-500/10 text-sky-600 dark:text-sky-400 flex items-center justify-center shrink-0 mt-0.5 sm:mt-0">
               <Search size={18} />
             </div>
-            <div>
+            <div className="min-w-0">
               <div className="flex flex-col sm:flex-row sm:items-center items-start gap-1.5 sm:gap-2">
                 <h2 className="text-sm sm:text-base font-semibold tracking-tight text-foreground">
                   SEO & Google Search Console
                 </h2>
                 {savedToken ? (
-                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-2xs font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 w-fit shrink-0">
+                  <span
+                    data-testid="seo-status-badge"
+                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-2xs font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 w-fit shrink-0"
+                  >
                     <CheckCircle2 size={11} />
                     Configured on Storefront
                   </span>
                 ) : (
-                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-2xs font-semibold bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 w-fit shrink-0">
+                  <span
+                    data-testid="seo-status-badge"
+                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-2xs font-semibold bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 w-fit shrink-0"
+                  >
                     <AlertCircle size={11} />
                     Not Configured
                   </span>
@@ -275,14 +281,18 @@ export function HomepageSeoManager({
             </div>
           </div>
 
-          {/* Quick Actions */}
-          <div className="flex items-center gap-2 self-start sm:self-auto">
+          {/* Quick Actions - Mobile Responsive Stacking (Issue #28) */}
+          <div
+            data-testid="seo-quick-actions"
+            className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto shrink-0 self-stretch sm:self-auto"
+          >
             {savedToken && (
               <button
                 type="button"
+                data-testid="btn-remove-seo-token"
                 onClick={handleRemove}
                 disabled={isSaving || disabled}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-border bg-card text-muted-foreground hover:text-red-600 hover:border-red-500/30 text-xs font-semibold transition-all cursor-pointer disabled:opacity-50"
+                className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-xl border border-border bg-card text-muted-foreground hover:text-red-600 hover:border-red-500/30 text-xs font-semibold transition-all cursor-pointer disabled:opacity-50 w-full sm:w-auto"
                 title="Remove verification token from homepage head"
               >
                 <Trash2 size={13} />
@@ -291,9 +301,10 @@ export function HomepageSeoManager({
             )}
             <button
               type="button"
+              data-testid="btn-save-seo"
               onClick={handleSave}
               disabled={isSaving || !isDirty || !parseResult.isValid || disabled}
-              className={`inline-flex items-center gap-1.5 px-4 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+              className={`inline-flex items-center justify-center gap-1.5 px-4 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer w-full sm:w-auto ${
                 isDirty && parseResult.isValid
                   ? "bg-primary text-primary-foreground shadow-xs hover:opacity-95"
                   : "bg-secondary text-muted-foreground opacity-60 cursor-not-allowed"

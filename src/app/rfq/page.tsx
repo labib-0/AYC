@@ -245,7 +245,11 @@ export default function RfqPage() {
         return;
       }
       // Preserve form values on failure, display clear actionable message
-      setErrorMsg(err?.message || "Failed to submit quotation request. Please verify your details and try again.");
+      const rawError = err?.message || "Failed to submit quotation request. Please verify your details and try again.";
+      const displayError = rawError.includes("Automated form submission detected")
+        ? "Your quotation request could not be verified. Please ensure browser autofill is not modifying security fields, or refresh the page and try again."
+        : rawError;
+      setErrorMsg(displayError);
       if (typeof window !== "undefined") {
         window.scrollTo({ top: 0, behavior: "smooth" });
       }
@@ -356,7 +360,7 @@ export default function RfqPage() {
         </div>
 
         {errorMsg && (
-          <div className="mb-6 p-4 rounded-2xl bg-destructive/10 border border-destructive/20 text-destructive text-sm font-sans font-medium flex items-center gap-2">
+          <div data-testid="rfq-error-banner" className="mb-6 p-4 rounded-2xl bg-destructive/10 border border-destructive/20 text-destructive text-sm font-sans font-medium flex items-center gap-2">
             <AlertTriangle size={18} className="shrink-0" />
             <span>{errorMsg}</span>
           </div>
@@ -807,7 +811,7 @@ export default function RfqPage() {
               {/* Submit CTA */}
               <div className="pt-4 border-t border-border/60">
                 {errorMsg && (
-                  <div className="mb-4 p-3 rounded-xl bg-destructive/10 border border-destructive/20 text-destructive text-xs font-sans font-medium flex items-center gap-2">
+                  <div data-testid="rfq-submit-error-banner" className="mb-4 p-3 rounded-xl bg-destructive/10 border border-destructive/20 text-destructive text-xs font-sans font-medium flex items-center gap-2">
                     <AlertTriangle size={15} className="shrink-0" />
                     <span>{errorMsg}</span>
                   </div>

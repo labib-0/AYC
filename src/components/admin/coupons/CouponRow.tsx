@@ -134,6 +134,7 @@ export default function CouponRow({
               onClick={() => onEdit(coupon)}
               className="p-1.5 rounded-lg border border-border bg-card hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
               title="Edit coupon"
+              data-testid={`btn-edit-coupon-${coupon.id}`}
             >
               <Edit2 size={13} />
             </button>

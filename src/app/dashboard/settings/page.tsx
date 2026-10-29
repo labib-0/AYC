@@ -50,16 +50,27 @@ function SignOutModal({
 
   return (
     <div
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="signout-modal-title"
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in"
-      onClick={() => {
-        if (!isLoggingOut) onClose();
+      data-testid="settings-signout-modal-overlay"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-hidden animate-in fade-in"
+      onClick={(e) => {
+        if (!isLoggingOut && e.target === e.currentTarget) onClose();
       }}
     >
+      {/* Explicit backdrop layer */}
       <div
-        className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 w-full max-w-md rounded-2xl p-6 shadow-2xl space-y-4 animate-in zoom-in-95 duration-150"
+        data-testid="settings-signout-modal-backdrop"
+        className="fixed inset-0 bg-black/60 backdrop-blur-xs transition-opacity cursor-pointer"
+        onClick={() => {
+          if (!isLoggingOut) onClose();
+        }}
+        aria-hidden="true"
+      />
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="signout-modal-title"
+        data-testid="settings-signout-modal-card"
+        className="relative z-10 bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 w-full max-w-md rounded-2xl p-6 shadow-2xl space-y-4 animate-in zoom-in-95 duration-150"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-start gap-3.5">
@@ -229,7 +240,16 @@ export default function SettingsPage() {
         setTimeout(() => setPasswordSuccess(null), 4000);
       }
     } catch (err: any) {
-      setPasswordError(err?.message || "An unexpected error occurred while updating password.");
+      const fieldError =
+        err?.errors?.current_password?.[0] ||
+        err?.errors?.password?.[0] ||
+        err?.errors?.password_confirmation?.[0] ||
+        err?.data?.errors?.current_password?.[0] ||
+        err?.data?.errors?.password?.[0] ||
+        err?.data?.errors?.password_confirmation?.[0];
+      const fallbackMsg =
+        err?.data?.message || err?.message || "An unexpected error occurred while updating password.";
+      setPasswordError(fieldError || fallbackMsg);
     } finally {
       setSavingPassword(false);
     }

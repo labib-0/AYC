@@ -1,0 +1,514 @@
+{
+  "timestamp": "2026-10-28T00:19:12.811Z",
+  "summary": {
+    "totalChecks": 55,
+    "passed": 55,
+    "failed": 0,
+    "blocked": 0
+  },
+  "sections": [
+    {
+      "name": "1. Admin Navigation & Role Boundaries",
+      "checks": [
+        {
+          "id": "NAV-01",
+          "title": "Unauthenticated visitor to /ayc/dashboard receives admin login gate",
+          "verdict": "PASS",
+          "details": {}
+        },
+        {
+          "id": "NAV-02",
+          "title": "Customer role account is strictly forbidden from admin settings",
+          "verdict": "PASS",
+          "details": {}
+        },
+        {
+          "id": "NAV-03",
+          "title": "Super Administrator authenticates cleanly and accesses Admin Dashboard",
+          "verdict": "PASS",
+          "details": {}
+        },
+        {
+          "id": "NAV-04",
+          "title": "Admin Sidebar collapse state toggles cleanly and persists preference",
+          "verdict": "PASS",
+          "details": {}
+        },
+        {
+          "id": "NAV-05",
+          "title": "Direct URL protection gate (AdminPageGate) enforces 403 HTTP wall on unauthorized roles",
+          "verdict": "PASS",
+          "details": {
+            "gateComponent": "AdminPageGate.tsx",
+            "protectedRoutes": [
+              "/ayc/dashboard",
+              "/ayc/settings",
+              "/ayc/roles",
+              "/ayc/pos",
+              "/ayc/documents"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "2. Dashboard & POS Operational Terminal",
+      "checks": [
+        {
+          "id": "DASH-01",
+          "title": "Dashboard renders structured metrics cards (Revenue, Orders, Products, Customers)",
+          "verdict": "PASS",
+          "details": {}
+        },
+        {
+          "id": "DASH-02",
+          "title": "Sales and Profit chart renders cleanly in responsive container",
+          "verdict": "PASS",
+          "details": {}
+        },
+        {
+          "id": "DASH-03",
+          "title": "Recent Store Operations grid renders recent orders/RFQs without horizontal clipping",
+          "verdict": "PASS",
+          "details": {}
+        },
+        {
+          "id": "POS-01",
+          "title": "POS Cashier Terminal loads with warehouse selector and catalog",
+          "verdict": "PASS",
+          "details": {}
+        },
+        {
+          "id": "POS-02",
+          "title": "POS Terminal provides barcode/product search and cashier controls",
+          "verdict": "PASS",
+          "details": {}
+        },
+        {
+          "id": "POS-03",
+          "title": "POS tender and change calculation arithmetic is mathematically exact",
+          "verdict": "PASS",
+          "details": {}
+        }
+      ]
+    },
+    {
+      "name": "3. Categories, Brands, and Orders Refresh Controls",
+      "checks": [
+        {
+          "id": "CAT-01",
+          "title": "Categories page refresh button invalidates cache and triggers data sync",
+          "verdict": "PASS",
+          "details": {}
+        },
+        {
+          "id": "BRD-01",
+          "title": "Brands page refresh button triggers authoritative sync without mutating records",
+          "verdict": "PASS",
+          "details": {}
+        },
+        {
+          "id": "ORD-01",
+          "title": "Orders page refresh button reloads order records and summary metrics in tandem",
+          "verdict": "PASS",
+          "details": {}
+        }
+      ]
+    },
+    {
+      "name": "4. Action Dropdowns (React Portal, Viewport Clamping & Flipping)",
+      "checks": [
+        {
+          "id": "DROP-01",
+          "title": "Product row action dropdown renders in React Portal at document.body and dismisses on Escape",
+          "verdict": "PASS",
+          "details": {}
+        },
+        {
+          "id": "DROP-02",
+          "title": "Administrator row action dropdown implements viewport boundary clamping and portal mounting",
+          "verdict": "PASS",
+          "details": {}
+        }
+      ]
+    },
+    {
+      "name": "5. Modals and Notifications Lifecycle",
+      "checks": [
+        {
+          "id": "MOD-01",
+          "title": "Admin notification bell popover opens within viewport and dismisses cleanly",
+          "verdict": "PASS",
+          "details": {}
+        },
+        {
+          "id": "MOD-02",
+          "title": "Coupon modal backdrop click dismisses dialog without mutating store",
+          "verdict": "PASS",
+          "details": {
+            "verifiedBy": "tests/prompt1-auth-feedback-and-coupon-modal.test.ts"
+          }
+        },
+        {
+          "id": "MOD-03",
+          "title": "Admin user modal outside-click dismisses safely without saving",
+          "verdict": "PASS",
+          "details": {
+            "verifiedBy": "tests/prompt1-admin-modal-dismissal.test.ts"
+          }
+        },
+        {
+          "id": "MOD-04",
+          "title": "Edit Role modal outside-click dismisses safely without saving",
+          "verdict": "PASS",
+          "details": {
+            "verifiedBy": "tests/prompt1-admin-modal-dismissal.test.ts"
+          }
+        },
+        {
+          "id": "MOD-05",
+          "title": "Change Admin Password modal outside-click cleans sensitive fields and dismisses safely",
+          "verdict": "PASS",
+          "details": {
+            "verifiedBy": "tests/prompt1-admin-modal-dismissal.test.ts"
+          }
+        }
+      ]
+    },
+    {
+      "name": "6. Coupons, Documents, and Roles Operational Verification",
+      "checks": [
+        {
+          "id": "DOC-01",
+          "title": "Documents hub displays KPI counters for Offer Sheets, Proforma Invoices, and Commercial Invoices",
+          "verdict": "PASS",
+          "details": {}
+        },
+        {
+          "id": "ROL-01",
+          "title": "Roles list displays canonical roles (Super Admin, Order Manager, Catalog Manager) and permission counts",
+          "verdict": "PASS",
+          "details": {}
+        }
+      ]
+    },
+    {
+      "name": "7. Settings: All 7 Tabs & Verified Hotfix Controls",
+      "checks": [
+        {
+          "id": "SET-01",
+          "title": "Settings Profile & Security tab loads with Change Password action",
+          "verdict": "PASS",
+          "details": {}
+        },
+        {
+          "id": "SET-02",
+          "title": "Settings Preferences tab displays Operational Currency (#42), Google Tags (#43), and SEO (#28)",
+          "verdict": "PASS",
+          "details": {}
+        },
+        {
+          "id": "SET-03",
+          "title": "Settings Business tab displays Beneficiary Bank Wire (#39) and Document Defaults (#40)",
+          "verdict": "PASS",
+          "details": {}
+        },
+        {
+          "id": "SET-04",
+          "title": "Settings Storefront Branding tab renders live logo preview and controls",
+          "verdict": "PASS",
+          "details": {}
+        },
+        {
+          "id": "SET-05",
+          "title": "Settings Social Links tab contains long URLs and prevents horizontal card blowout",
+          "verdict": "PASS",
+          "details": {}
+        },
+        {
+          "id": "SET-06",
+          "title": "Settings Legal Pages tab renders editor toolbar and subtab navigation",
+          "verdict": "PASS",
+          "details": {}
+        },
+        {
+          "id": "SET-07",
+          "title": "Settings Admin Users tab renders administrator KPI cards and user table",
+          "verdict": "PASS",
+          "details": {}
+        }
+      ]
+    },
+    {
+      "name": "8. Responsive Multi-Viewport Matrix (Zero Overflow & Card Switching)",
+      "checks": [
+        {
+          "id": "RESP-1440-DASHBOARD",
+          "title": "Page dashboard at 1440x900 renders cleanly with 0 horizontal overflow",
+          "verdict": "PASS",
+          "details": {
+            "width": 1440,
+            "height": 900,
+            "overflow": false
+          }
+        },
+        {
+          "id": "RESP-1440-DOCUMENTS",
+          "title": "Page documents at 1440x900 renders cleanly with 0 horizontal overflow",
+          "verdict": "PASS",
+          "details": {
+            "width": 1440,
+            "height": 900,
+            "overflow": false
+          }
+        },
+        {
+          "id": "RESP-1440-ROLES",
+          "title": "Page roles at 1440x900 renders cleanly with 0 horizontal overflow",
+          "verdict": "PASS",
+          "details": {
+            "width": 1440,
+            "height": 900,
+            "overflow": false
+          }
+        },
+        {
+          "id": "RESP-1440-SETTINGS_BUSINESS",
+          "title": "Page settings_business at 1440x900 renders cleanly with 0 horizontal overflow",
+          "verdict": "PASS",
+          "details": {
+            "width": 1440,
+            "height": 900,
+            "overflow": false
+          }
+        },
+        {
+          "id": "RESP-1440-SETTINGS_PREFERENCES",
+          "title": "Page settings_preferences at 1440x900 renders cleanly with 0 horizontal overflow",
+          "verdict": "PASS",
+          "details": {
+            "width": 1440,
+            "height": 900,
+            "overflow": false
+          }
+        },
+        {
+          "id": "RESP-1024-DASHBOARD",
+          "title": "Page dashboard at 1024x768 renders cleanly with 0 horizontal overflow",
+          "verdict": "PASS",
+          "details": {
+            "width": 1024,
+            "height": 768,
+            "overflow": false
+          }
+        },
+        {
+          "id": "RESP-1024-DOCUMENTS",
+          "title": "Page documents at 1024x768 renders cleanly with 0 horizontal overflow",
+          "verdict": "PASS",
+          "details": {
+            "width": 1024,
+            "height": 768,
+            "overflow": false
+          }
+        },
+        {
+          "id": "RESP-1024-ROLES",
+          "title": "Page roles at 1024x768 renders cleanly with 0 horizontal overflow",
+          "verdict": "PASS",
+          "details": {
+            "width": 1024,
+            "height": 768,
+            "overflow": false
+          }
+        },
+        {
+          "id": "RESP-1024-SETTINGS_BUSINESS",
+          "title": "Page settings_business at 1024x768 renders cleanly with 0 horizontal overflow",
+          "verdict": "PASS",
+          "details": {
+            "width": 1024,
+            "height": 768,
+            "overflow": false
+          }
+        },
+        {
+          "id": "RESP-1024-SETTINGS_PREFERENCES",
+          "title": "Page settings_preferences at 1024x768 renders cleanly with 0 horizontal overflow",
+          "verdict": "PASS",
+          "details": {
+            "width": 1024,
+            "height": 768,
+            "overflow": false
+          }
+        },
+        {
+          "id": "RESP-768-DASHBOARD",
+          "title": "Page dashboard at 768x1024 renders cleanly with 0 horizontal overflow",
+          "verdict": "PASS",
+          "details": {
+            "width": 768,
+            "height": 1024,
+            "overflow": false
+          }
+        },
+        {
+          "id": "RESP-768-DOCUMENTS",
+          "title": "Page documents at 768x1024 renders cleanly with 0 horizontal overflow",
+          "verdict": "PASS",
+          "details": {
+            "width": 768,
+            "height": 1024,
+            "overflow": false
+          }
+        },
+        {
+          "id": "RESP-768-ROLES",
+          "title": "Page roles at 768x1024 renders cleanly with 0 horizontal overflow",
+          "verdict": "PASS",
+          "details": {
+            "width": 768,
+            "height": 1024,
+            "overflow": false
+          }
+        },
+        {
+          "id": "RESP-768-SETTINGS_BUSINESS",
+          "title": "Page settings_business at 768x1024 renders cleanly with 0 horizontal overflow",
+          "verdict": "PASS",
+          "details": {
+            "width": 768,
+            "height": 1024,
+            "overflow": false
+          }
+        },
+        {
+          "id": "RESP-768-SETTINGS_PREFERENCES",
+          "title": "Page settings_preferences at 768x1024 renders cleanly with 0 horizontal overflow",
+          "verdict": "PASS",
+          "details": {
+            "width": 768,
+            "height": 1024,
+            "overflow": false
+          }
+        },
+        {
+          "id": "RESP-375-DASHBOARD",
+          "title": "Page dashboard at 375x812 renders cleanly with 0 horizontal overflow",
+          "verdict": "PASS",
+          "details": {
+            "width": 375,
+            "height": 812,
+            "overflow": false
+          }
+        },
+        {
+          "id": "RESP-375-DOCUMENTS",
+          "title": "Page documents at 375x812 renders cleanly with 0 horizontal overflow",
+          "verdict": "PASS",
+          "details": {
+            "width": 375,
+            "height": 812,
+            "overflow": false
+          }
+        },
+        {
+          "id": "RESP-375-ROLES",
+          "title": "Page roles at 375x812 renders cleanly with 0 horizontal overflow",
+          "verdict": "PASS",
+          "details": {
+            "width": 375,
+            "height": 812,
+            "overflow": false
+          }
+        },
+        {
+          "id": "RESP-375-SETTINGS_BUSINESS",
+          "title": "Page settings_business at 375x812 renders cleanly with 0 horizontal overflow",
+          "verdict": "PASS",
+          "details": {
+            "width": 375,
+            "height": 812,
+            "overflow": false
+          }
+        },
+        {
+          "id": "RESP-375-SETTINGS_PREFERENCES",
+          "title": "Page settings_preferences at 375x812 renders cleanly with 0 horizontal overflow",
+          "verdict": "PASS",
+          "details": {
+            "width": 375,
+            "height": 812,
+            "overflow": false
+          }
+        },
+        {
+          "id": "RESP-320-DASHBOARD",
+          "title": "Page dashboard at 320x720 renders cleanly with 0 horizontal overflow",
+          "verdict": "PASS",
+          "details": {
+            "width": 320,
+            "height": 720,
+            "overflow": false
+          }
+        },
+        {
+          "id": "RESP-320-DOCUMENTS",
+          "title": "Page documents at 320x720 renders cleanly with 0 horizontal overflow",
+          "verdict": "PASS",
+          "details": {
+            "width": 320,
+            "height": 720,
+            "overflow": false
+          }
+        },
+        {
+          "id": "RESP-320-ROLES",
+          "title": "Page roles at 320x720 renders cleanly with 0 horizontal overflow",
+          "verdict": "PASS",
+          "details": {
+            "width": 320,
+            "height": 720,
+            "overflow": false
+          }
+        },
+        {
+          "id": "RESP-320-SETTINGS_BUSINESS",
+          "title": "Page settings_business at 320x720 renders cleanly with 0 horizontal overflow",
+          "verdict": "PASS",
+          "details": {
+            "width": 320,
+            "height": 720,
+            "overflow": false
+          }
+        },
+        {
+          "id": "RESP-320-SETTINGS_PREFERENCES",
+          "title": "Page settings_preferences at 320x720 renders cleanly with 0 horizontal overflow",
+          "verdict": "PASS",
+          "details": {
+            "width": 320,
+            "height": 720,
+            "overflow": false
+          }
+        }
+      ]
+    }
+  ],
+  "screenshots": [
+    "/Users/labibhasan/Documents/AYC/docs/qa/full-regression-audit-2026-10-28/admin/screenshots/admin_dashboard_desktop_1440.png",
+    "/Users/labibhasan/Documents/AYC/docs/qa/full-regression-audit-2026-10-28/admin/screenshots/admin_pos_desktop_1440.png",
+    "/Users/labibhasan/Documents/AYC/docs/qa/full-regression-audit-2026-10-28/admin/screenshots/admin_categories_refreshed.png",
+    "/Users/labibhasan/Documents/AYC/docs/qa/full-regression-audit-2026-10-28/admin/screenshots/admin_brands_refreshed.png",
+    "/Users/labibhasan/Documents/AYC/docs/qa/full-regression-audit-2026-10-28/admin/screenshots/admin_orders_refreshed.png",
+    "/Users/labibhasan/Documents/AYC/docs/qa/full-regression-audit-2026-10-28/admin/screenshots/admin_product_dropdown_portal.png",
+    "/Users/labibhasan/Documents/AYC/docs/qa/full-regression-audit-2026-10-28/admin/screenshots/admin_documents_hub_desktop.png",
+    "/Users/labibhasan/Documents/AYC/docs/qa/full-regression-audit-2026-10-28/admin/screenshots/admin_roles_desktop.png",
+    "/Users/labibhasan/Documents/AYC/docs/qa/full-regression-audit-2026-10-28/admin/screenshots/admin_settings_tab_profile.png",
+    "/Users/labibhasan/Documents/AYC/docs/qa/full-regression-audit-2026-10-28/admin/screenshots/admin_settings_tab_preferences.png",
+    "/Users/labibhasan/Documents/AYC/docs/qa/full-regression-audit-2026-10-28/admin/screenshots/admin_settings_tab_business.png",
+    "/Users/labibhasan/Documents/AYC/docs/qa/full-regression-audit-2026-10-28/admin/screenshots/admin_documents_mobile_375.png",
+    "/Users/labibhasan/Documents/AYC/docs/qa/full-regression-audit-2026-10-28/admin/screenshots/admin_roles_mobile_375.png",
+    "/Users/labibhasan/Documents/AYC/docs/qa/full-regression-audit-2026-10-28/admin/screenshots/admin_settings_business_mobile_375.png"
+  ]
+}

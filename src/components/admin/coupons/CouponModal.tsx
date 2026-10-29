@@ -214,6 +214,7 @@ export default function CouponModal({
       role="dialog"
       aria-modal="true"
       aria-labelledby="coupon-modal-title"
+      data-testid="coupon-modal-overlay"
       className="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto"
       onClick={(e) => {
         if (e.target === e.currentTarget && !saving) {
@@ -223,7 +224,7 @@ export default function CouponModal({
     >
       {/* Backdrop */}
       <div
-        className="fixed inset-0 bg-stone-900/60 dark:bg-black/70 backdrop-blur-xs transition-opacity"
+        className="fixed inset-0 bg-stone-900/60 dark:bg-black/70 backdrop-blur-xs transition-opacity cursor-pointer"
         onClick={() => {
           if (!saving) {
             onClose();

@@ -61,7 +61,10 @@ export default function DashboardLayoutClient({ children }: { children: React.Re
   const isOverview = pathname === "/dashboard";
 
   return (
-    <div className="bg-slate-50/70 dark:bg-slate-950 min-h-screen overflow-x-clip">
+    <div
+      data-testid="customer-dashboard-container"
+      className="bg-slate-50/70 dark:bg-slate-950 min-h-screen overflow-x-clip lg:overflow-x-visible"
+    >
       <div className="max-w-[1728px] 2xl:max-w-[1760px] mx-auto px-4 sm:px-6 lg:px-8 xl:px-8 py-4 sm:py-6">
         {/* Breadcrumbs */}
         <nav

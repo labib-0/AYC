@@ -119,6 +119,12 @@ export async function createRfq(
     items: data.items || [],
   };
 
+  // Anti-bot Honeypot validation (both mock and real modes safeguard against automated abuse)
+  const honeypotVal = (data as any)?.website_url_hp ?? (data as any)?.website_hp;
+  if (honeypotVal && typeof honeypotVal === "string" && honeypotVal.trim().length > 0) {
+    throw new ApiError(422, "Automated form submission detected.");
+  }
+
   if (!isFrontendOnly()) {
     let tokenToUse = (data as any)?.form_token || (data as any)?.formToken;
     if (!tokenToUse) {
@@ -139,12 +145,6 @@ export async function createRfq(
       return mapBackendQuoteToRfq(backendQuote);
     }
     throw new Error("Invalid response received from RFQ submission endpoint.");
-  }
-
-  // Anti-bot Honeypot validation (both mock and real modes safeguard against automated abuse)
-  const honeypotVal = (data as any)?.website_url_hp ?? (data as any)?.website_hp;
-  if (honeypotVal && typeof honeypotVal === "string" && honeypotVal.trim().length > 0) {
-    throw new ApiError(422, "Automated form submission detected.");
   }
 
   // Required field validation

@@ -898,7 +898,7 @@ function SearchResultsContent() {
         {/* Main content area */}
         <div className={
             isFilterOpen
-              ? "grid grid-cols-1 lg:grid-cols-[300px_minmax(0,1fr)] gap-6 xl:gap-8 w-full"
+              ? "grid grid-cols-1 lg:grid-cols-[300px_minmax(0,1fr)] items-start gap-6 xl:gap-8 w-full"
               : "w-full"
           }>
 

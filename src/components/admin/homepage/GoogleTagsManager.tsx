@@ -254,7 +254,10 @@ export function GoogleTagsManager({
                 <h2 className="text-sm sm:text-base font-semibold tracking-tight text-foreground truncate">
                   Google Tags &amp; Tracking
                 </h2>
-                <div className="flex flex-col sm:flex-row sm:items-center items-start gap-1 sm:gap-1.5">
+                <div
+                  data-testid="google-tags-badges"
+                  className="flex flex-col sm:flex-row sm:items-center items-start gap-1 sm:gap-1.5"
+                >
                   {isHeadConfigured ? (
                     <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-2xs font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 w-fit shrink-0">
                       <CheckCircle2 size={10} />
@@ -283,14 +286,18 @@ export function GoogleTagsManager({
             </div>
           </div>
 
-          {/* Action Buttons */}
-          <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto shrink-0 w-full sm:w-auto">
+          {/* Action Buttons - Mobile Responsive Stacking (Issue #29 & Issue #43) */}
+          <div
+            data-testid="google-tags-actions"
+            className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto shrink-0 self-stretch sm:self-auto"
+          >
             {isDirty && (
               <button
                 type="button"
+                data-testid="btn-reset-tags"
                 onClick={() => handleReset("all")}
                 disabled={isSaving || disabled}
-                className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-xl border border-border bg-card text-muted-foreground hover:text-foreground text-xs font-semibold transition-all cursor-pointer disabled:opacity-50 flex-1 sm:flex-none"
+                className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-xl border border-border bg-card text-muted-foreground hover:text-foreground text-xs font-semibold transition-all cursor-pointer disabled:opacity-50 w-full sm:w-auto"
                 title="Cancel and revert unsaved changes"
               >
                 <RotateCcw size={13} />
@@ -301,9 +308,10 @@ export function GoogleTagsManager({
             {isAnyConfigured && !isDirty && (
               <button
                 type="button"
+                data-testid="btn-clear-tags"
                 onClick={handleClearAll}
                 disabled={isSaving || disabled}
-                className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-xl border border-border bg-card text-muted-foreground hover:text-red-600 hover:border-red-500/30 text-xs font-semibold transition-all cursor-pointer disabled:opacity-50 flex-1 sm:flex-none"
+                className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-xl border border-border bg-card text-muted-foreground hover:text-red-600 hover:border-red-500/30 text-xs font-semibold transition-all cursor-pointer disabled:opacity-50 w-full sm:w-auto"
                 title="Clear both tracking snippets"
               >
                 <Trash2 size={13} />
@@ -313,9 +321,10 @@ export function GoogleTagsManager({
 
             <button
               type="button"
+              data-testid="btn-save-tags"
               onClick={() => handleSave("all")}
               disabled={isSaving || !isDirty || hasOversizedField || disabled}
-              className={`inline-flex items-center justify-center gap-1.5 px-4 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer flex-1 sm:flex-none ${
+              className={`inline-flex items-center justify-center gap-1.5 px-4 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer w-full sm:w-auto ${
                 isDirty && !hasOversizedField
                   ? "bg-primary text-primary-foreground shadow-xs hover:opacity-95"
                   : "bg-secondary text-muted-foreground opacity-60 cursor-not-allowed"
@@ -354,11 +363,15 @@ export function GoogleTagsManager({
         </div>
 
         {/* Editor Tab Navigation */}
-        <div className="flex border-b border-border/70 space-x-2">
+        <div
+          data-testid="google-tags-tabs"
+          className="flex flex-col sm:flex-row border-b border-border/70 gap-1.5 sm:gap-2 sm:space-x-0"
+        >
           <button
             type="button"
+            data-testid="tab-head-code"
             onClick={() => setActiveTab("head")}
-            className={`pb-2 px-3 text-xs font-semibold border-b-2 transition-all flex items-center gap-2 cursor-pointer ${
+            className={`pb-2 px-3 text-xs font-semibold border-b-2 transition-all flex items-center justify-center sm:justify-start gap-2 cursor-pointer w-full sm:w-auto ${
               activeTab === "head"
                 ? "border-primary text-foreground"
                 : "border-transparent text-muted-foreground hover:text-foreground"
@@ -372,8 +385,9 @@ export function GoogleTagsManager({
           </button>
           <button
             type="button"
+            data-testid="tab-body-code"
             onClick={() => setActiveTab("body")}
-            className={`pb-2 px-3 text-xs font-semibold border-b-2 transition-all flex items-center gap-2 cursor-pointer ${
+            className={`pb-2 px-3 text-xs font-semibold border-b-2 transition-all flex items-center justify-center sm:justify-start gap-2 cursor-pointer w-full sm:w-auto ${
               activeTab === "body"
                 ? "border-primary text-foreground"
                 : "border-transparent text-muted-foreground hover:text-foreground"
@@ -439,12 +453,12 @@ export function GoogleTagsManager({
 
             {/* Tab-level Action Bar */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pt-1">
-              <div className="flex flex-wrap items-center gap-2">
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto">
                 <button
                   type="button"
                   onClick={() => handleSave("head")}
                   disabled={isSaving || !isHeadDirty || isHeadOversized || disabled}
-                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+                  className={`inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer w-full sm:w-auto ${
                     isHeadDirty && !isHeadOversized
                       ? "bg-primary text-primary-foreground shadow-xs hover:opacity-95"
                       : "bg-secondary text-muted-foreground opacity-60 cursor-not-allowed"
@@ -458,7 +472,7 @@ export function GoogleTagsManager({
                     type="button"
                     onClick={() => handleReset("head")}
                     disabled={isSaving || disabled}
-                    className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border border-border bg-card text-muted-foreground hover:text-foreground text-xs font-medium transition-all cursor-pointer"
+                    className="inline-flex items-center justify-center gap-1.5 px-2.5 py-1.5 rounded-xl border border-border bg-card text-muted-foreground hover:text-foreground text-xs font-medium transition-all cursor-pointer w-full sm:w-auto"
                   >
                     <RotateCcw size={12} />
                     <span>Revert</span>
@@ -470,7 +484,7 @@ export function GoogleTagsManager({
                   type="button"
                   onClick={() => handleClearSnippet("head")}
                   disabled={isSaving || disabled}
-                  className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs text-muted-foreground hover:text-red-600 hover:bg-red-500/10 transition-all cursor-pointer self-start sm:self-auto"
+                  className="inline-flex items-center justify-center gap-1 px-2.5 py-1.5 rounded-xl text-xs text-muted-foreground hover:text-red-600 hover:bg-red-500/10 transition-all cursor-pointer w-full sm:w-auto self-stretch sm:self-auto"
                 >
                   <Trash2 size={12} />
                   <span>Clear Head Code</span>
@@ -532,12 +546,12 @@ export function GoogleTagsManager({
 
             {/* Tab-level Action Bar */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pt-1">
-              <div className="flex flex-wrap items-center gap-2">
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto">
                 <button
                   type="button"
                   onClick={() => handleSave("body")}
                   disabled={isSaving || !isBodyDirty || isBodyOversized || disabled}
-                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+                  className={`inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer w-full sm:w-auto ${
                     isBodyDirty && !isBodyOversized
                       ? "bg-primary text-primary-foreground shadow-xs hover:opacity-95"
                       : "bg-secondary text-muted-foreground opacity-60 cursor-not-allowed"
@@ -551,7 +565,7 @@ export function GoogleTagsManager({
                     type="button"
                     onClick={() => handleReset("body")}
                     disabled={isSaving || disabled}
-                    className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border border-border bg-card text-muted-foreground hover:text-foreground text-xs font-medium transition-all cursor-pointer"
+                    className="inline-flex items-center justify-center gap-1.5 px-2.5 py-1.5 rounded-xl border border-border bg-card text-muted-foreground hover:text-foreground text-xs font-medium transition-all cursor-pointer w-full sm:w-auto"
                   >
                     <RotateCcw size={12} />
                     <span>Revert</span>
@@ -563,7 +577,7 @@ export function GoogleTagsManager({
                   type="button"
                   onClick={() => handleClearSnippet("body")}
                   disabled={isSaving || disabled}
-                  className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs text-muted-foreground hover:text-red-600 hover:bg-red-500/10 transition-all cursor-pointer self-start sm:self-auto"
+                  className="inline-flex items-center justify-center gap-1 px-2.5 py-1.5 rounded-xl text-xs text-muted-foreground hover:text-red-600 hover:bg-red-500/10 transition-all cursor-pointer w-full sm:w-auto self-stretch sm:self-auto"
                 >
                   <Trash2 size={12} />
                   <span>Clear Body Code</span>

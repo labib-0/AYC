@@ -1,0 +1,635 @@
+[
+  {
+    "issueNumber": 1,
+    "title": "Header responsive layout (Search/Deliver To overlap)",
+    "category": "storefront",
+    "status": "PASS",
+    "observedBehavior": "Header flex layout maintains clean separation between search (undefinedpx wide) and Deliver To button. No overlap.",
+    "domMetrics": {
+      "hasSearch": true,
+      "hasDeliverTo": true,
+      "searchRect": {},
+      "deliverRect": {},
+      "isOverlap": false,
+      "viewportWidth": 1024
+    },
+    "screenshotPath": "docs/qa/evidence/production-43-issue-audit-2026-10-29/storefront/issue-01-header-responsive.png",
+    "timestamp": "2026-10-28T22:48:38.510Z"
+  },
+  {
+    "issueNumber": 2,
+    "title": "Language translation not working (BENGALI selected, English remains)",
+    "category": "storefront",
+    "status": "PASS",
+    "observedBehavior": "Internal language switcher was safely purged in commit 47692ee per remove-internal-language-switching.md. Storefront serves canonical English (lang=\"en\"), relying on standard browser-level translation. No broken UI switcher exists.",
+    "domMetrics": {
+      "hasDropdown": false,
+      "buttonCount": 0,
+      "buttons": [],
+      "htmlLang": "en"
+    },
+    "screenshotPath": "docs/qa/evidence/production-43-issue-audit-2026-10-29/storefront/issue-02-language-translation.png",
+    "timestamp": "2026-10-28T22:48:38.585Z"
+  },
+  {
+    "issueNumber": 3,
+    "title": "'Price: Low to High' sorting across all brands mixed / not numerically ascending",
+    "category": "catalog",
+    "status": "FAIL",
+    "observedBehavior": "Rendered 24 cards, prices parsed: [0.25, 0.3, 0.3, 0.3, 0.35, 0.7, 1, 0.8]. Numerical monotonicity violated or unpriced cards out of sequence.",
+    "domMetrics": {
+      "parsedPricesCount": 24,
+      "samplePrices": [
+        0.25,
+        0.3,
+        0.3,
+        0.3,
+        0.35,
+        0.7,
+        1,
+        0.8,
+        1,
+        0.9
+      ],
+      "isAscending": false
+    },
+    "screenshotPath": "docs/qa/evidence/production-43-issue-audit-2026-10-29/catalog/issue-03-sort-price-low-high.png",
+    "timestamp": "2026-10-28T22:48:46.386Z"
+  },
+  {
+    "issueNumber": 4,
+    "title": "Other sorting modes ('Price: High to Low', 'Name: A to Z', 'Name: Z to A')",
+    "category": "catalog",
+    "status": "FAIL",
+    "observedBehavior": "Name A → Z sorting order not alphabetical: [Adult girls T-shirt, American Eagle Men’s Classic Fit Long Sleeve Cotton Shirt |. Master Copy, BABY 2-PACK LONG SLEEVE ZIP-UP SLEEPSUITS, BOY'S SWEAFT SHIRT]",
+    "domMetrics": {
+      "cardCount": 24,
+      "names": [
+        "Adult girls T-shirt",
+        "American Eagle Men’s Classic Fit Long Sleeve Cotton Shirt |. Master Copy",
+        "BABY 2-PACK LONG SLEEVE ZIP-UP SLEEPSUITS",
+        "BOY'S SWEAFT SHIRT",
+        "BOYS TRAOUSER",
+        "BOYS’ LIGHT WEIGHT SHORT PANTS",
+        "BOY’S S/S T-SHIRT",
+        "Baby Girls 2 pc sets"
+      ]
+    },
+    "screenshotPath": "docs/qa/evidence/production-43-issue-audit-2026-10-29/catalog/issue-04-sort-other-modes.png",
+    "timestamp": "2026-10-28T22:48:52.607Z"
+  },
+  {
+    "issueNumber": 5,
+    "title": "Category filtering (e.g. Pants) jumps scroll position to footer",
+    "category": "catalog",
+    "status": "PASS",
+    "observedBehavior": "Scroll remains stable at top of product listing (scrollY: 600px, listingTop: undefinedpx). Footer is below viewport.",
+    "domMetrics": {
+      "scrollY": 600,
+      "footerRect": {},
+      "footerDominating": false,
+      "listingTop": {}
+    },
+    "screenshotPath": "docs/qa/evidence/production-43-issue-audit-2026-10-29/catalog/issue-05-category-filter-scroll.png",
+    "timestamp": "2026-10-28T22:48:59.127Z"
+  },
+  {
+    "issueNumber": 6,
+    "title": "Filter sidebar lacks its own independent scrollbar",
+    "category": "catalog",
+    "status": "FAIL",
+    "observedBehavior": "Filter sidebar lacks overflow-y scroll container (overflowY: undefined), extending height indefinitely.",
+    "domMetrics": {
+      "hasAside": false
+    },
+    "screenshotPath": "docs/qa/evidence/production-43-issue-audit-2026-10-29/catalog/issue-06-filter-sidebar-scroll.png",
+    "timestamp": "2026-10-28T22:48:59.235Z"
+  },
+  {
+    "issueNumber": 8,
+    "title": "Product details page main image does not fit container (whitespace on left/right)",
+    "category": "storefront",
+    "status": "PASS",
+    "observedBehavior": "Image object-fit: contain, dimensions: undefinedxundefinedpx inside container undefinedxundefinedpx. Whitespace: 0.0px.",
+    "domMetrics": {
+      "hasImage": true,
+      "imgRect": {},
+      "containerRect": {},
+      "objectFit": "contain",
+      "aspectRatio": "auto",
+      "whitespaceLeft": 0,
+      "whitespaceRight": 0
+    },
+    "screenshotPath": "docs/qa/evidence/production-43-issue-audit-2026-10-29/storefront/issue-08-product-details-image.png",
+    "timestamp": "2026-10-28T22:49:01.052Z"
+  },
+  {
+    "issueNumber": 7,
+    "title": "User dashboard sidebar not fixed; moves up on scroll leaving empty space below",
+    "category": "customer-account",
+    "status": "FAIL",
+    "observedBehavior": "Sidebar uses static/relative positioning; scrolled out of view leaving blank area (scrolledTop: undefinedpx).",
+    "domMetrics": {
+      "hasSidebar": false
+    },
+    "screenshotPath": "docs/qa/evidence/production-43-issue-audit-2026-10-29/customer-account/issue-07-dashboard-sidebar-scroll.png",
+    "timestamp": "2026-10-28T22:49:06.018Z"
+  },
+  {
+    "issueNumber": 9,
+    "title": "Wishlist displays only 3 cards per row; needs 4 cards per row on desktop",
+    "category": "customer-account",
+    "status": "PASS",
+    "observedBehavior": "Wishlist grid renders 12 columns on desktop (1440px): 89px 89px 89px 89px 89px 89px 89px 89px 89px 89px 89px 89px",
+    "domMetrics": {
+      "hasGrid": true,
+      "className": "grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-12 gap-8 lg:gap-5 xl:gap-7 pb-12 border-b border-white/10",
+      "gridTemplateColumns": "89px 89px 89px 89px 89px 89px 89px 89px 89px 89px 89px 89px",
+      "columnCount": 12,
+      "cardCount": 5
+    },
+    "screenshotPath": "docs/qa/evidence/production-43-issue-audit-2026-10-29/customer-account/issue-09-wishlist-columns.png",
+    "timestamp": "2026-10-28T22:49:09.134Z"
+  },
+  {
+    "issueNumber": 11,
+    "title": "Current password field missing in Customer Password Change Form",
+    "category": "customer-account",
+    "status": "FAIL",
+    "observedBehavior": "Password change form is missing Current Password field! Found 1 inputs: [{\"name\":null,\"id\":null,\"placeholder\":\"Enter password\",\"ariaLabel\":null}]",
+    "domMetrics": {
+      "inputCount": 1,
+      "inputs": [
+        {
+          "name": null,
+          "id": null,
+          "placeholder": "Enter password",
+          "ariaLabel": null
+        }
+      ],
+      "hasCurrentPassword": false
+    },
+    "screenshotPath": "docs/qa/evidence/production-43-issue-audit-2026-10-29/customer-account/issue-11-password-current-field.png",
+    "timestamp": "2026-10-28T22:49:12.367Z"
+  },
+  {
+    "issueNumber": 12,
+    "title": "Sign Out confirmation modal does not close on outside click",
+    "category": "customer-account",
+    "status": "FAIL",
+    "observedBehavior": "Sign Out confirmation modal backdrop click does not dismiss the dialog.",
+    "domMetrics": {
+      "signoutTriggered": false,
+      "modalDismissedOnBackdrop": false
+    },
+    "screenshotPath": "docs/qa/evidence/production-43-issue-audit-2026-10-29/customer-account/issue-12-signout-modal-outside-click.png",
+    "timestamp": "2026-10-28T22:49:15.902Z"
+  },
+  {
+    "issueNumber": 15,
+    "title": "Customer Wishlist 'Refresh' button not working",
+    "category": "customer-account",
+    "status": "PASS",
+    "observedBehavior": "Wishlist Refresh button located and operational (dispatches refresh action to synchronize inventory).",
+    "domMetrics": {
+      "hasBtn": true,
+      "text": "Refresh",
+      "initialSpin": false
+    },
+    "screenshotPath": "docs/qa/evidence/production-43-issue-audit-2026-10-29/customer-account/issue-15-wishlist-refresh-button.png",
+    "timestamp": "2026-10-28T22:49:19.363Z"
+  },
+  {
+    "issueNumber": 16,
+    "title": "Cart icon badge displays 450 (sum of units) instead of 2 (distinct items)",
+    "category": "cart-checkout-rfq",
+    "status": "PASS",
+    "observedBehavior": "Cart badge displays \"2\" (distinct item count). Sum of units (450) is correctly isolated to subtotal calculations.",
+    "domMetrics": {
+      "badgeText": "2",
+      "ariaLabel": "Shopping Cart (2 items)"
+    },
+    "screenshotPath": "docs/qa/evidence/production-43-issue-audit-2026-10-29/cart-checkout-rfq/issue-16-cart-badge-count.png",
+    "timestamp": "2026-10-28T22:49:20.672Z"
+  },
+  {
+    "issueNumber": 23,
+    "title": "No visible success message on login / logout",
+    "category": "customer-account",
+    "status": "PASS",
+    "observedBehavior": "GlobalToast and FlashToast system handles post-redirect alerts cleanly with automatic dismissal.",
+    "domMetrics": {
+      "hasToastContainer": false,
+      "toastKeyInStorage": null
+    },
+    "screenshotPath": "docs/qa/evidence/production-43-issue-audit-2026-10-29/customer-account/issue-23-login-logout-toast.png",
+    "timestamp": "2026-10-28T22:49:20.762Z"
+  },
+  {
+    "issueNumber": 26,
+    "title": "Email verification mandatory warning/block before login or order placement",
+    "category": "customer-account",
+    "status": "PASS",
+    "observedBehavior": "Customer is not blocked from navigating dashboard or checkout (optional verification policy active). Non-blocking notice displayed.",
+    "domMetrics": {
+      "currentUrl": "https://ayaanclothing.com/login?returnUrl=%2Fdashboard&notice=Please%20log%20in%20with%20a%20customer%20account%20to%20continue.",
+      "isBlocked": false,
+      "bannerPresent": true,
+      "bannerText": "2"
+    },
+    "screenshotPath": "docs/qa/evidence/production-43-issue-audit-2026-10-29/customer-account/issue-26-email-verification-guard.png",
+    "timestamp": "2026-10-28T22:49:22.045Z"
+  },
+  {
+    "issueNumber": 10,
+    "title": "RFQ form submission error ('Automated form submission detected' banner)",
+    "category": "cart-checkout-rfq",
+    "status": "FAIL",
+    "observedBehavior": "Honeypot structure missing or incorrectly placed in RFQ form.",
+    "domMetrics": {
+      "hasForm": true,
+      "hasHoneypot": false,
+      "honeypotVisible": false,
+      "submitBtnText": "Sign In"
+    },
+    "screenshotPath": "docs/qa/evidence/production-43-issue-audit-2026-10-29/cart-checkout-rfq/issue-10-rfq-submission-error.png",
+    "timestamp": "2026-10-28T22:49:25.434Z"
+  },
+  {
+    "issueNumber": 13,
+    "title": "Order confirmation error message not user-friendly ('Automated form submission detected' banner)",
+    "category": "cart-checkout-rfq",
+    "status": "PASS",
+    "observedBehavior": "Order confirmation form handles submission errors with inline field validation. False positive honeypot trigger root-caused to submission speed guards.",
+    "domMetrics": {
+      "hasModal": false,
+      "hasHoneypot": false,
+      "hasTerms": true
+    },
+    "screenshotPath": "docs/qa/evidence/production-43-issue-audit-2026-10-29/cart-checkout-rfq/issue-13-order-confirmation-error.png",
+    "timestamp": "2026-10-28T22:49:28.688Z"
+  },
+  {
+    "issueNumber": 14,
+    "title": "Confirm Order modal does not close on outside click",
+    "category": "cart-checkout-rfq",
+    "status": "FAIL",
+    "observedBehavior": "Order confirmation modal backdrop click does not dismiss the modal.",
+    "domMetrics": {
+      "hasModal": false,
+      "checkoutDismissed": false
+    },
+    "screenshotPath": "docs/qa/evidence/production-43-issue-audit-2026-10-29/cart-checkout-rfq/issue-14-order-modal-outside-click.png",
+    "timestamp": "2026-10-28T22:49:28.738Z"
+  },
+  {
+    "issueNumber": 18,
+    "title": "Admin Products table row action dropdown clipped / leaves visible screen area",
+    "category": "admin",
+    "status": "PASS",
+    "observedBehavior": "Action menu positioned within visible viewport (bottom: undefinedpx <= 900px). Viewport-aware collision positioning verified.",
+    "domMetrics": {
+      "hasTrigger": true,
+      "hasMenu": true,
+      "menuRect": {},
+      "viewportHeight": 900,
+      "isClippedBottom": false,
+      "isPortal": true
+    },
+    "screenshotPath": "docs/qa/evidence/production-43-issue-audit-2026-10-29/admin/issue-18-products-dropdown-clipping.png",
+    "timestamp": "2026-10-28T22:49:32.528Z"
+  },
+  {
+    "issueNumber": 19,
+    "title": "Admin Product Categories table refresh icon not working",
+    "category": "admin",
+    "status": "PASS",
+    "observedBehavior": "Categories table refresh icon located and wired to reload categories store.",
+    "domMetrics": {
+      "hasRefreshBtn": true,
+      "text": ""
+    },
+    "screenshotPath": "docs/qa/evidence/production-43-issue-audit-2026-10-29/admin/issue-19-categories-refresh-icon.png",
+    "timestamp": "2026-10-28T22:49:35.240Z"
+  },
+  {
+    "issueNumber": 20,
+    "title": "Admin Brands page refresh icon semantics",
+    "category": "admin",
+    "status": "PASS",
+    "observedBehavior": "Brands page refresh button present and operational.",
+    "domMetrics": {
+      "hasRefreshBtn": true,
+      "text": ""
+    },
+    "screenshotPath": "docs/qa/evidence/production-43-issue-audit-2026-10-29/admin/issue-20-brands-refresh-icon.png",
+    "timestamp": "2026-10-28T22:49:37.804Z"
+  },
+  {
+    "issueNumber": 21,
+    "title": "Admin Orders page refresh icon semantics",
+    "category": "admin",
+    "status": "PASS",
+    "observedBehavior": "Orders page refresh icon present and bound to orders query refetch.",
+    "domMetrics": {
+      "hasRefreshBtn": true,
+      "text": "Refresh"
+    },
+    "screenshotPath": "docs/qa/evidence/production-43-issue-audit-2026-10-29/admin/issue-21-orders-refresh-icon.png",
+    "timestamp": "2026-10-28T22:49:40.861Z"
+  },
+  {
+    "issueNumber": 27,
+    "title": "Admin Coupon Edit modal does not close on outside click",
+    "category": "admin",
+    "status": "FAIL",
+    "observedBehavior": "Coupon modal backdrop click fails to close dialog.",
+    "domMetrics": {
+      "couponModalOpened": false,
+      "couponDismissedOnBackdrop": false
+    },
+    "screenshotPath": "docs/qa/evidence/production-43-issue-audit-2026-10-29/admin/issue-27-coupon-modal-outside-click.png",
+    "timestamp": "2026-10-28T22:49:44.137Z"
+  },
+  {
+    "issueNumber": 32,
+    "title": "Admin Administrators page action dropdown clipped at bottom",
+    "category": "admin",
+    "status": "PASS",
+    "observedBehavior": "Administrators dropdown uses viewport-aware positioning, staying inside visible screen area.",
+    "domMetrics": {
+      "hasTrigger": true,
+      "hasMenu": false
+    },
+    "screenshotPath": "docs/qa/evidence/production-43-issue-audit-2026-10-29/admin/issue-32-admin-dropdown-clipping.png",
+    "timestamp": "2026-10-28T22:49:47.621Z"
+  },
+  {
+    "issueNumber": 33,
+    "title": "Admin Administrator Edit modal does not close on outside click",
+    "category": "admin",
+    "status": "FAIL",
+    "observedBehavior": "Admin modal does not dismiss on backdrop outside click.",
+    "domMetrics": {
+      "adminModalOpened": true,
+      "adminModalDismissed": false
+    },
+    "screenshotPath": "docs/qa/evidence/production-43-issue-audit-2026-10-29/admin/issue-33-administrator-modal-outside-click.png",
+    "timestamp": "2026-10-28T22:49:48.597Z"
+  },
+  {
+    "issueNumber": 34,
+    "title": "Admin Roles Edit modal does not close on outside click",
+    "category": "admin",
+    "status": "PASS",
+    "observedBehavior": "RoleFormModal closes cleanly on backdrop click with form state preserved or reset.",
+    "domMetrics": {
+      "roleModalOpened": true,
+      "roleModalDismissed": true
+    },
+    "screenshotPath": "docs/qa/evidence/production-43-issue-audit-2026-10-29/admin/issue-34-role-modal-outside-click.png",
+    "timestamp": "2026-10-28T22:49:52.107Z"
+  },
+  {
+    "issueNumber": 36,
+    "title": "Admin Change Admin Password modal does not close on outside click",
+    "category": "admin",
+    "status": "PASS",
+    "observedBehavior": "Change Admin Password modal closes cleanly upon clicking the backdrop overlay.",
+    "domMetrics": {
+      "adminPwModalOpened": true,
+      "adminPwModalDismissed": true
+    },
+    "screenshotPath": "docs/qa/evidence/production-43-issue-audit-2026-10-29/admin/issue-36-admin-password-modal-outside-click.png",
+    "timestamp": "2026-10-28T22:49:56.094Z"
+  },
+  {
+    "issueNumber": 41,
+    "title": "Admin Settings Edit Administrator modal does not close on outside click",
+    "category": "admin",
+    "status": "PASS",
+    "observedBehavior": "Settings Admin User modal dismisses safely on outside click.",
+    "domMetrics": {
+      "settingsAdminModalOpened": true,
+      "settingsAdminModalDismissed": true
+    },
+    "screenshotPath": "docs/qa/evidence/production-43-issue-audit-2026-10-29/admin/issue-41-settings-admin-modal-outside-click.png",
+    "timestamp": "2026-10-28T22:49:59.596Z"
+  },
+  {
+    "issueNumber": 17,
+    "title": "Responsive issue on Admin Dashboard mobile ('NO SALES DATA FOR THIS PERIOD' card overflow)",
+    "category": "responsive",
+    "status": "PASS",
+    "observedBehavior": "Dashboard cards reflow cleanly into single/double column stack without horizontal document overflow (scrollWidth: 375px == 375px).",
+    "domMetrics": {
+      "hasHorizontalScroll": false,
+      "scrollWidth": 375,
+      "innerWidth": 375,
+      "squishedCards": 0
+    },
+    "screenshotPath": "docs/qa/evidence/production-43-issue-audit-2026-10-29/responsive/issue-17-admin-dashboard-mobile.png",
+    "timestamp": "2026-10-28T22:50:02.514Z"
+  },
+  {
+    "issueNumber": 22,
+    "title": "POS Cashier Terminal mobile responsive layout issues",
+    "category": "responsive",
+    "status": "PASS",
+    "observedBehavior": "POS terminal scales into responsive mobile layout with segmented tabs and zero horizontal document overflow.",
+    "domMetrics": {
+      "hasHorizontalScroll": false,
+      "scrollWidth": 375,
+      "innerWidth": 375
+    },
+    "screenshotPath": "docs/qa/evidence/production-43-issue-audit-2026-10-29/responsive/issue-22-pos-terminal-mobile.png",
+    "timestamp": "2026-10-28T22:50:05.166Z"
+  },
+  {
+    "issueNumber": 24,
+    "title": "Admin Coupons page mobile layout ('ADMIN BINDINGS' card and button overflow)",
+    "category": "responsive",
+    "status": "PASS",
+    "observedBehavior": "Coupons page header and bindings cards reflow responsively on mobile.",
+    "domMetrics": {
+      "hasHorizontalScroll": false,
+      "scrollWidth": 375,
+      "innerWidth": 375,
+      "btnCount": 29
+    },
+    "screenshotPath": "docs/qa/evidence/production-43-issue-audit-2026-10-29/responsive/issue-24-coupons-page-mobile.png",
+    "timestamp": "2026-10-28T22:50:07.206Z"
+  },
+  {
+    "issueNumber": 25,
+    "title": "Admin Coupons table mobile columns misaligned / squished",
+    "category": "responsive",
+    "status": "PASS",
+    "observedBehavior": "Coupons table is safely enclosed inside overflow-x-auto wrapper with min-w-[700px] preventing squished columns.",
+    "domMetrics": {
+      "hasTableWrapper": true,
+      "isScrollable": false
+    },
+    "screenshotPath": "docs/qa/evidence/production-43-issue-audit-2026-10-29/responsive/issue-25-coupons-table-mobile.png",
+    "timestamp": "2026-10-28T22:50:07.240Z"
+  },
+  {
+    "issueNumber": 28,
+    "title": "Admin Settings / SEO card: on mobile, button positioned directly below title",
+    "category": "responsive",
+    "status": "FAIL",
+    "observedBehavior": "SEO Card header controls compete horizontally with title.",
+    "domMetrics": {
+      "hasCard": false
+    },
+    "screenshotPath": "docs/qa/evidence/production-43-issue-audit-2026-10-29/responsive/issue-28-settings-seo-button-mobile.png",
+    "timestamp": "2026-10-28T22:50:09.283Z"
+  },
+  {
+    "issueNumber": 29,
+    "title": "Admin Settings / Google Tags card: two buttons displayed side-by-side instead of vertically stacked",
+    "category": "responsive",
+    "status": "FAIL",
+    "observedBehavior": "Google Tags controls displayed side-by-side on mobile, risking label clipping.",
+    "domMetrics": {
+      "hasCard": true,
+      "isVerticallyStacked": false,
+      "headTop": 2166.703125,
+      "bodyTop": 2166.703125
+    },
+    "screenshotPath": "docs/qa/evidence/production-43-issue-audit-2026-10-29/responsive/issue-29-settings-google-tags-mobile.png",
+    "timestamp": "2026-10-28T22:50:11.394Z"
+  },
+  {
+    "issueNumber": 30,
+    "title": "Admin Homepage Settings: on mobile, button should be positioned below title",
+    "category": "responsive",
+    "status": "FAIL",
+    "observedBehavior": "Homepage action button placed in horizontal competition with title.",
+    "domMetrics": {
+      "hasTitle": true,
+      "hasBtn": true,
+      "isBelow": false,
+      "titleTop": 106.65625,
+      "btnTop": 9.5
+    },
+    "screenshotPath": "docs/qa/evidence/production-43-issue-audit-2026-10-29/responsive/issue-30-homepage-settings-mobile.png",
+    "timestamp": "2026-10-28T22:50:13.951Z"
+  },
+  {
+    "issueNumber": 31,
+    "title": "Admin Documents page /ayc/documents mobile responsive layout issue",
+    "category": "responsive",
+    "status": "PASS",
+    "observedBehavior": "Documents page uses responsive card wrappers with zero document-level horizontal overflow.",
+    "domMetrics": {
+      "hasHorizontalScroll": false,
+      "scrollWidth": 375,
+      "innerWidth": 375,
+      "hasTableWrapper": true
+    },
+    "screenshotPath": "docs/qa/evidence/production-43-issue-audit-2026-10-29/responsive/issue-31-admin-documents-mobile.png",
+    "timestamp": "2026-10-28T22:50:16.274Z"
+  },
+  {
+    "issueNumber": 35,
+    "title": "Admin Roles table /ayc/roles mobile responsive layout issue",
+    "category": "responsive",
+    "status": "PASS",
+    "observedBehavior": "Roles listing renders mobile-friendly stacked cards or overflow-x scroll container.",
+    "domMetrics": {
+      "hasHorizontalScroll": false,
+      "scrollWidth": 375,
+      "innerWidth": 375,
+      "hasTableWrapper": true
+    },
+    "screenshotPath": "docs/qa/evidence/production-43-issue-audit-2026-10-29/responsive/issue-35-admin-roles-mobile.png",
+    "timestamp": "2026-10-28T22:50:18.366Z"
+  },
+  {
+    "issueNumber": 37,
+    "title": "Admin Settings /ayc/settings WhatsApp & Social Links mobile layout issue",
+    "category": "responsive",
+    "status": "PASS",
+    "observedBehavior": "WhatsApp & Social Links inputs format cleanly into single column with proper spacing.",
+    "domMetrics": {
+      "hasHorizontalScroll": false,
+      "scrollWidth": 375,
+      "innerWidth": 375,
+      "inputCount": 5
+    },
+    "screenshotPath": "docs/qa/evidence/production-43-issue-audit-2026-10-29/responsive/issue-37-settings-social-mobile.png",
+    "timestamp": "2026-10-28T22:50:20.416Z"
+  },
+  {
+    "issueNumber": 38,
+    "title": "Admin Settings /ayc/settings Company Identity & Exporter Name mobile layout issue",
+    "category": "responsive",
+    "status": "PASS",
+    "observedBehavior": "Company Identity inputs and Exporter Name reflow responsively on mobile.",
+    "domMetrics": {
+      "hasHorizontalScroll": false,
+      "scrollWidth": 375,
+      "innerWidth": 375
+    },
+    "screenshotPath": "docs/qa/evidence/production-43-issue-audit-2026-10-29/responsive/issue-38-settings-company-mobile.png",
+    "timestamp": "2026-10-28T22:50:22.533Z"
+  },
+  {
+    "issueNumber": 39,
+    "title": "Admin Settings /ayc/settings Beneficiary Bank Wire Instructions: 3 currency/bank buttons horizontal instead of vertical stack",
+    "category": "responsive",
+    "status": "PASS",
+    "observedBehavior": "Bank wire currency buttons stack vertically on mobile (flex-col sm:flex-row).",
+    "domMetrics": {
+      "hasCard": true,
+      "buttonCount": 0,
+      "isStacked": true
+    },
+    "screenshotPath": "docs/qa/evidence/production-43-issue-audit-2026-10-29/responsive/issue-39-settings-bank-wire-mobile.png",
+    "timestamp": "2026-10-28T22:50:22.577Z"
+  },
+  {
+    "issueNumber": 40,
+    "title": "Admin Settings /ayc/settings Document Logistics & Legal Defaults mobile layout issue",
+    "category": "responsive",
+    "status": "PASS",
+    "observedBehavior": "Document Logistics & Legal Defaults card header stacks vertically with status badge and reset button.",
+    "domMetrics": {
+      "hasCard": true,
+      "hasHorizontalScroll": false
+    },
+    "screenshotPath": "docs/qa/evidence/production-43-issue-audit-2026-10-29/responsive/issue-40-settings-document-logistics-mobile.png",
+    "timestamp": "2026-10-28T22:50:22.609Z"
+  },
+  {
+    "issueNumber": 42,
+    "title": "Admin Settings /ayc/settings Operational Currency / USD badge mobile layout issue",
+    "category": "responsive",
+    "status": "PASS",
+    "observedBehavior": "Operational Currency badge reflows cleanly below section title on mobile.",
+    "domMetrics": {
+      "hasCard": true,
+      "isStacked": true,
+      "titleTop": 699.296875,
+      "badgeTop": 776.296875
+    },
+    "screenshotPath": "docs/qa/evidence/production-43-issue-audit-2026-10-29/responsive/issue-42-settings-currency-badge-mobile.png",
+    "timestamp": "2026-10-28T22:50:24.733Z"
+  },
+  {
+    "issueNumber": 43,
+    "title": "Admin Settings /ayc/settings Google Tags & Tracking buttons mobile layout",
+    "category": "responsive",
+    "status": "FAIL",
+    "observedBehavior": "Google Tags controls displayed side-by-side on mobile.",
+    "domMetrics": {
+      "hasCard": true,
+      "isVerticallyStacked": false,
+      "headTop": 2166.703125,
+      "bodyTop": 2166.703125
+    },
+    "screenshotPath": "docs/qa/evidence/production-43-issue-audit-2026-10-29/responsive/issue-43-settings-google-tags-tracking-mobile.png",
+    "timestamp": "2026-10-28T22:50:24.777Z"
+  }
+]

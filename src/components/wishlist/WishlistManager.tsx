@@ -39,7 +39,13 @@ export default function WishlistManager({ isStorefront = false }: { isStorefront
   const [isBulkAdding, setIsBulkAdding] = useState(false);
   const [feedback, setFeedback] = useState<FeedbackState | null>(null);
   const [refreshError, setRefreshError] = useState<string | null>(null);
+  const [isRefreshingLocal, setIsRefreshingLocal] = useState(false);
+  const [hasInitialLoaded, setHasInitialLoaded] = useState(!loading);
   const selectAllRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (!loading) setHasInitialLoaded(true);
+  }, [loading]);
 
   // Prune selectedIds when items change (e.g. after refresh or removal) so valid selections are preserved without dangling IDs
   useEffect(() => {
@@ -54,8 +60,9 @@ export default function WishlistManager({ isStorefront = false }: { isStorefront
   }, [items]);
 
   const handleRefresh = async () => {
-    if (loading) return;
+    if (loading || isRefreshingLocal) return;
     try {
+      setIsRefreshingLocal(true);
       setRefreshError(null);
       await refreshWishlist();
       setFeedback({
@@ -67,6 +74,8 @@ export default function WishlistManager({ isStorefront = false }: { isStorefront
       });
     } catch (err: any) {
       setRefreshError(err?.message || "Unable to refresh wishlist. Please check your connection and try again.");
+    } finally {
+      setIsRefreshingLocal(false);
     }
   };
 
@@ -271,12 +280,12 @@ export default function WishlistManager({ isStorefront = false }: { isStorefront
     setIsCartOpen(true);
   };
 
-  // Loading skeleton
-  if (loading && items.length === 0) {
+  // Loading skeleton (initial mount only)
+  if (!hasInitialLoaded && loading && items.length === 0) {
     return (
       <div className="space-y-4">
         <div className="h-20 bg-slate-100 dark:bg-slate-800/60 rounded-2xl animate-pulse" />
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3.5 sm:gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-3.5 lg:gap-4">
           {[1, 2, 3, 4].map((i) => (
             <div key={i} className="h-64 bg-slate-100 dark:bg-slate-800/60 rounded-2xl animate-pulse" />
           ))}
@@ -315,13 +324,14 @@ export default function WishlistManager({ isStorefront = false }: { isStorefront
           <button
             type="button"
             id="wishlist-refresh-btn"
+            data-testid="wishlist-refresh-btn"
             onClick={handleRefresh}
-            disabled={loading}
+            disabled={loading || isRefreshingLocal}
             className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-semibold text-xs hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
             title="Refresh availability"
           >
-            <RefreshCw size={12} className={loading ? "animate-spin" : ""} />
-            <span>{loading ? "Refreshing..." : "Refresh"}</span>
+            <RefreshCw size={12} className={(loading || isRefreshingLocal) ? "animate-spin" : ""} />
+            <span>{(loading || isRefreshingLocal) ? "Refreshing..." : "Refresh"}</span>
           </button>
 
           <Link
@@ -545,8 +555,11 @@ export default function WishlistManager({ isStorefront = false }: { isStorefront
             </div>
           </div>
 
-          {/* 5. Product Grid (4 columns on desktop >= 1280px, responsive on mobile & tablet) */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3.5 sm:gap-4">
+          {/* 5. Product Grid (4 columns on desktop >= 1024px, 2 on tablet, 1 on mobile) */}
+          <div
+            data-testid="wishlist-grid"
+            className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-3.5 lg:gap-4"
+          >
             {displayedItems.map((item) => {
               const product = item.product;
               const isEligible = isItemEligible(item);
@@ -566,15 +579,15 @@ export default function WishlistManager({ isStorefront = false }: { isStorefront
                   key={item.id}
                   data-wishlist-item-id={item.id}
                   data-product-id={product?.id}
-                  className={`bg-white dark:bg-slate-900 border rounded-2xl p-4 shadow-xs flex flex-col justify-between transition-all ${
+                  className={`bg-white dark:bg-slate-900 border rounded-2xl p-3 sm:p-3.5 shadow-xs flex flex-col justify-between transition-all ${
                     isSelected
                       ? "border-amber-500 dark:border-amber-500 ring-1 ring-amber-500/20"
                       : "border-slate-200/80 dark:border-white/10 hover:border-slate-300 dark:hover:border-white/20"
                   } ${!isEligible ? "opacity-90 bg-slate-50/50 dark:bg-slate-900/50" : ""}`}
                 >
                   <div>
-                    {/* Top Image + Checkbox + Badges + Delete */}
-                    <div className="relative aspect-[4/3] rounded-xl overflow-hidden bg-slate-100 dark:bg-white/5 mb-3 border border-slate-100 dark:border-white/5">
+                    {/* Top Image + Checkbox + Badges + Delete — Canonical 3:4 Portrait Ratio */}
+                    <div className="relative aspect-[3/4] rounded-xl overflow-hidden bg-slate-100 dark:bg-white/5 mb-2.5 border border-slate-100 dark:border-white/5">
                       {/* Item Checkbox */}
                       <div className="absolute top-2 left-2 z-20">
                         <label
@@ -630,7 +643,7 @@ export default function WishlistManager({ isStorefront = false }: { isStorefront
                         <img
                           src={coverImage}
                           alt={product?.name || "Saved Product"}
-                          className={`w-full h-full object-contain p-2 transition-transform duration-300 hover:scale-105 ${
+                          className={`w-full h-full object-contain p-1.5 transition-transform duration-300 hover:scale-105 ${
                             !isEligible ? "grayscale-[0.35]" : ""
                           }`}
                         />
@@ -638,7 +651,7 @@ export default function WishlistManager({ isStorefront = false }: { isStorefront
                     </div>
 
                     {/* Brand & SKU */}
-                    <div className="flex items-center justify-between text-[11px] font-medium text-slate-400 uppercase tracking-wider mb-1">
+                    <div className="flex items-center justify-between text-[10.5px] font-medium text-slate-400 uppercase tracking-wider mb-1">
                       <span>{product?.brand || "Ayaan Export"}</span>
                       {product?.sku && <span className="font-mono text-[10px] opacity-80">SKU: {product.sku}</span>}
                     </div>
@@ -646,22 +659,22 @@ export default function WishlistManager({ isStorefront = false }: { isStorefront
                     {/* Product Name */}
                     <Link
                       href={product?.slug ? `/products/${product.slug}` : "#"}
-                      className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white hover:text-amber-600 dark:hover:text-amber-400 transition-colors line-clamp-2 leading-snug mb-3 block"
+                      className="text-xs sm:text-[13px] font-bold text-slate-900 dark:text-white hover:text-amber-600 dark:hover:text-amber-400 transition-colors line-clamp-2 leading-snug mb-2 block min-h-[2rem]"
                     >
                       {product?.name || "Product details unavailable"}
                     </Link>
 
                     {/* Price & MOQ specs */}
-                    <div className="flex items-center justify-between text-xs py-2 border-t border-slate-100 dark:border-white/5 mb-3.5">
+                    <div className="flex items-center justify-between text-xs py-1.5 border-t border-slate-100 dark:border-white/5 mb-2.5">
                       <div>
-                        <span className="text-[11px] text-slate-400 block">Unit Price</span>
-                        <span className="font-bold text-slate-900 dark:text-white text-xs sm:text-sm">
+                        <span className="text-[10.5px] text-slate-400 block">Unit Price</span>
+                        <span className="font-bold text-slate-900 dark:text-white text-xs sm:text-[13px]">
                           {price > 0 ? `$${price.toFixed(2)}` : "Price on Request"}
                         </span>
                       </div>
                       <div className="text-right">
-                        <span className="text-[11px] text-slate-400 block">Minimum Order</span>
-                        <span className="font-semibold text-slate-700 dark:text-slate-300">
+                        <span className="text-[10.5px] text-slate-400 block">Minimum Order</span>
+                        <span className="font-semibold text-slate-700 dark:text-slate-300 text-[11px] sm:text-xs">
                           {effectiveMoq} units
                         </span>
                       </div>
@@ -671,7 +684,7 @@ export default function WishlistManager({ isStorefront = false }: { isStorefront
                   {/* Actions Area */}
                   <div>
                     {!isEligible ? (
-                      <div className="flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 text-xs font-semibold cursor-not-allowed">
+                      <div className="flex items-center justify-center gap-1.5 py-2 px-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 text-xs font-semibold cursor-not-allowed">
                         <AlertCircle size={13} />
                         <span>Unavailable for purchase</span>
                       </div>
@@ -680,7 +693,7 @@ export default function WishlistManager({ isStorefront = false }: { isStorefront
                         type="button"
                         data-action="add-to-cart"
                         onClick={() => handleSingleAddToCart(product!)}
-                        className="w-full flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-xs transition-all active:scale-[0.98] shadow-xs cursor-pointer"
+                        className="w-full flex items-center justify-center gap-1.5 py-2 px-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-xs transition-all active:scale-[0.98] shadow-xs cursor-pointer"
                       >
                         <ShoppingCart size={14} />
                         <span>Add to Cart ({effectiveMoq} MOQ)</span>

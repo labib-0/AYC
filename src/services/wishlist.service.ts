@@ -160,6 +160,10 @@ export class WishlistService {
         }
       } catch (err: any) {
         if (options?.forceFresh) {
+          // If network failed due to offline transition or backend unavailability, retain local cache
+          if (!err?.status || err?.status === 0 || err?.status >= 500) {
+            return this.getLocal();
+          }
           throw err;
         }
         // Fall back to local cache if network error on initial load

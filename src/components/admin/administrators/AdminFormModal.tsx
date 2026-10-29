@@ -131,7 +131,7 @@ export default function AdminFormModal({
       role="dialog"
       aria-modal="true"
       aria-labelledby="admin-form-modal-title"
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-xs overflow-y-auto animate-in fade-in duration-150"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto animate-in fade-in duration-150"
       onClick={(e) => {
         if (e.target === e.currentTarget && !submitting) {
           onClose();
@@ -139,8 +139,20 @@ export default function AdminFormModal({
       }}
       data-testid="admin-form-modal-overlay"
     >
+      {/* Explicit backdrop layer for robust outside-click handling */}
       <div
-        className="relative w-full max-w-xl rounded-2xl border border-border/80 bg-card p-6 shadow-2xl space-y-5 my-8"
+        data-testid="admin-form-modal-backdrop"
+        className="fixed inset-0 bg-background/80 backdrop-blur-xs transition-opacity cursor-pointer"
+        onClick={() => {
+          if (!submitting) {
+            onClose();
+          }
+        }}
+        aria-hidden="true"
+      />
+
+      <div
+        className="relative z-10 w-full max-w-xl rounded-2xl border border-border/80 bg-card p-6 shadow-2xl space-y-5 my-8"
         onClick={(e) => e.stopPropagation()}
         data-testid="admin-form-modal-content"
       >

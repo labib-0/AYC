@@ -51,7 +51,6 @@ export function DashboardSidebar() {
   const pathname = usePathname();
   const router = useRouter();
   const [showSignOutConfirm, setShowSignOutConfirm] = useState(false);
-  const signOutMouseDownRef = useRef(false);
 
   // Keyboard accessibility (Escape) and scroll lock for sign-out confirmation modal
   useEffect(() => {
@@ -100,7 +99,10 @@ export function DashboardSidebar() {
 
   return (
     <>
-      <aside className="hidden lg:flex flex-col w-[250px] shrink-0 sticky top-24 self-start max-h-[calc(100vh-7rem)] z-10">
+      <aside
+        data-testid="customer-dashboard-sidebar"
+        className="hidden lg:flex flex-col w-[250px] shrink-0 sticky top-24 self-start max-h-[calc(100vh-7rem)] z-10"
+      >
         <div className="bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-white/10 rounded-2xl shadow-xs overflow-y-auto subtle-scrollbar w-full flex flex-col max-h-[calc(100vh-7rem)]">
           {/* Company / Buyer identity banner */}
           <div className="p-4 bg-gradient-to-b from-slate-50 to-white dark:from-slate-800/40 dark:to-slate-900 border-b border-slate-100 dark:border-white/10">
@@ -270,37 +272,29 @@ export function DashboardSidebar() {
       {/* Sign Out Confirmation Modal */}
       {showSignOutConfirm && (
         <div
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="signout-dialog-title"
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4 animate-in fade-in"
-          onMouseDown={(e) => {
-            signOutMouseDownRef.current = e.target === e.currentTarget;
-          }}
-          onTouchStart={(e) => {
-            signOutMouseDownRef.current = e.target === e.currentTarget;
-          }}
+          data-testid="signout-modal-overlay"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-hidden animate-in fade-in"
           onClick={(e) => {
-            if (e.target === e.currentTarget && signOutMouseDownRef.current) {
+            if (e.target === e.currentTarget) {
               setShowSignOutConfirm(false);
             }
-            signOutMouseDownRef.current = false;
           }}
         >
+          {/* Explicit backdrop layer */}
           <div
-            className="bg-white dark:bg-slate-900 rounded-2xl p-6 max-w-sm w-full shadow-xl border border-slate-200 dark:border-white/10 text-center relative animate-in zoom-in-95 duration-150"
-            onClick={(e) => {
-              e.stopPropagation();
-              signOutMouseDownRef.current = false;
-            }}
-            onMouseDown={(e) => {
-              e.stopPropagation();
-              signOutMouseDownRef.current = false;
-            }}
-            onTouchStart={(e) => {
-              e.stopPropagation();
-              signOutMouseDownRef.current = false;
-            }}
+            data-testid="signout-modal-backdrop"
+            className="fixed inset-0 bg-black/50 backdrop-blur-xs transition-opacity cursor-pointer"
+            onClick={() => setShowSignOutConfirm(false)}
+            aria-hidden="true"
+          />
+
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="signout-dialog-title"
+            data-testid="signout-modal-card"
+            className="relative z-10 bg-white dark:bg-slate-900 rounded-2xl p-6 max-w-sm w-full shadow-xl border border-slate-200 dark:border-white/10 text-center animate-in zoom-in-95 duration-150"
+            onClick={(e) => e.stopPropagation()}
           >
             {/* Close button */}
             <button

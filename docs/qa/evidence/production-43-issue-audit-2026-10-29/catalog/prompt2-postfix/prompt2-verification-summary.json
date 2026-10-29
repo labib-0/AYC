@@ -1,0 +1,133 @@
+{
+  "issue06_sidebar_geometry": {
+    "passed": true,
+    "metrics": {
+      "colExists": true,
+      "colSelfStart": true,
+      "asideExists": true,
+      "asidePosition": "sticky",
+      "asideTop": "84px",
+      "asideMaxHeight": "800px",
+      "scrollBodyExists": true,
+      "scrollBodyOverflowY": "auto",
+      "scrollHeight": 1199,
+      "clientHeight": 715,
+      "canScroll": true
+    }
+  },
+  "issue06_sidebar_scroll": {
+    "passed": true,
+    "scrollResult": {
+      "scrolled": true,
+      "scrollTop": 220,
+      "maxScroll": 484
+    }
+  },
+  "issue05_category_scroll": {
+    "passed": true,
+    "state": {
+      "scrollY": 267,
+      "listingTopInViewport": false,
+      "listingTopOffset": -135,
+      "footerInViewport": false,
+      "footerTop": 1976.15625,
+      "url": "http://localhost:3000/search?category=t-shirts&filterOpen=true"
+    }
+  },
+  "issue03_sort_price_asc": {
+    "cardCount": 24,
+    "pricedCount": 24,
+    "inversions": 0,
+    "passed": true,
+    "sample": [
+      {
+        "id": "prd0041",
+        "name": "Toddler Graphic Onesie",
+        "price": 4.2
+      },
+      {
+        "id": "dm055",
+        "name": "Ayaan Boys Essential Polo",
+        "price": 5.5
+      },
+      {
+        "id": "dm124",
+        "name": "Champion Girls Everyday Terry Shorts",
+        "price": 5.5
+      },
+      {
+        "id": "dm066",
+        "name": "Uniqlo Girls Heattech Long Sleeve",
+        "price": 5.5
+      },
+      {
+        "id": "prd0032",
+        "name": "Athletic Crew Socks 3-Pack",
+        "price": 5.6
+      }
+    ]
+  },
+  "issue04_sort_price_desc": {
+    "cardCount": 24,
+    "pricedCount": 24,
+    "inversions": 0,
+    "passed": true,
+    "sample": [
+      {
+        "id": "prd0070",
+        "name": "Silk Scarf",
+        "price": 196
+      },
+      {
+        "id": "prd0031",
+        "name": "Classic Trench Coat",
+        "price": 175
+      },
+      {
+        "id": "prd0089",
+        "name": "Cashmere Wrap",
+        "price": 105
+      },
+      {
+        "id": "prd0075",
+        "name": "Chelsea Boots",
+        "price": 98
+      },
+      {
+        "id": "prd0097",
+        "name": "Aviator Sunglasses",
+        "price": 84
+      }
+    ]
+  },
+  "issue04_sort_name_asc": {
+    "cardCount": 24,
+    "sample": [
+      {
+        "id": "prd0028",
+        "name": "A-Line Denim Skirt"
+      },
+      {
+        "id": "dm027",
+        "name": "Adidas Boys' Training Shorts"
+      },
+      {
+        "id": "dm002",
+        "name": "Adidas Essentials 3-Stripe Hoodie"
+      },
+      {
+        "id": "dm089",
+        "name": "Adidas Girls Tights Sport Leggings"
+      },
+      {
+        "id": "dm105",
+        "name": "Adidas Men's Adicolor Classics 3-Stripes Shorts"
+      },
+      {
+        "id": "dm064",
+        "name": "Adidas Men's Tiro Track Pants"
+      }
+    ],
+    "passed": true
+  }
+}

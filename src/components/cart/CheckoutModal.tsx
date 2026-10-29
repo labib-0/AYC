@@ -962,7 +962,11 @@ export default function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
       ) {
         setError("Please verify your email address before placing your order. Check your inbox for the verification email. Once your email is verified, return to checkout to continue.");
       } else {
-        setError(err?.message || "Failed to confirm order. Please try again.");
+        const rawErr = err?.message || "Failed to confirm order. Please try again.";
+        const displayErr = rawErr.includes("Automated form submission detected")
+          ? "Your order submission could not be verified. Please ensure browser autofill is not modifying security fields, or refresh the page and try again."
+          : rawErr;
+        setError(displayErr);
       }
     } finally {
       setLoading(false);
@@ -1017,35 +1021,29 @@ export default function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
       confirmedOrder.shipping_cost === 0;
 
     return (
-      <>
+      <div
+        data-testid="order-placed-overlay"
+        className="fixed inset-0 z-[220] flex items-center justify-center p-2.5 sm:p-4 md:p-6 overflow-hidden animate-in fade-in duration-200"
+        onClick={(e) => {
+          if (e.target === e.currentTarget) {
+            onClose();
+          }
+        }}
+      >
+        {/* Explicit backdrop layer */}
         <div
-          className="fixed inset-0 bg-ink/60 backdrop-blur-xs z-[220] animate-in fade-in"
+          data-testid="order-placed-backdrop"
+          className="fixed inset-0 bg-ink/60 backdrop-blur-xs transition-opacity cursor-pointer"
           onClick={onClose}
+          aria-hidden="true"
         />
         <div
-          className="fixed inset-0 z-[230] flex items-center justify-center p-2.5 sm:p-4 md:p-6 overflow-hidden"
-          onMouseDown={handleBackdropMouseDown}
-          onTouchStart={handleBackdropTouchStart}
-          onClick={handleBackdropClick}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="order-placed-heading"
+          className="relative z-10 bg-card border border-border/80 w-full max-w-xl rounded-2xl sm:rounded-3xl shadow-2xl overflow-hidden flex flex-col h-full max-h-[calc(100dvh-1.25rem)] sm:max-h-[min(90dvh,840px)] animate-in zoom-in-95 duration-200"
+          onClick={(e) => e.stopPropagation()}
         >
-          <div
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="order-placed-heading"
-            className="bg-card border border-border/80 w-full max-w-xl rounded-2xl sm:rounded-3xl shadow-2xl overflow-hidden flex flex-col h-full max-h-[calc(100dvh-1.25rem)] sm:max-h-[min(90dvh,840px)] animate-in zoom-in-95 duration-200"
-            onClick={(e) => {
-              e.stopPropagation();
-              backdropMouseDownRef.current = false;
-            }}
-            onMouseDown={(e) => {
-              e.stopPropagation();
-              backdropMouseDownRef.current = false;
-            }}
-            onTouchStart={(e) => {
-              e.stopPropagation();
-              backdropMouseDownRef.current = false;
-            }}
-          >
             {/* Modal Header (Pinned) */}
             <div className="flex items-center justify-between px-5 sm:px-6 py-4 border-b border-border bg-amber-500/5 shrink-0">
               <div className="flex items-center gap-3">
@@ -1243,7 +1241,6 @@ export default function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
             </div>
           </div>
         </div>
-      </>
     );
   }
 
@@ -1270,35 +1267,34 @@ export default function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
   return (
     <>
       <div
-        className="fixed inset-0 bg-ink/60 backdrop-blur-xs z-[220] animate-in fade-in"
-        onClick={onClose}
-      />
+        data-testid="checkout-modal-overlay"
+      className="fixed inset-0 z-[220] flex items-center justify-center p-2.5 sm:p-4 md:p-6 overflow-hidden animate-in fade-in duration-200"
+      onClick={(e) => {
+        if (e.target === e.currentTarget && !loading && !isSubmittingRef.current) {
+          onClose();
+        }
+      }}
+    >
+      {/* Explicit backdrop layer */}
       <div
-        className="fixed inset-0 z-[230] flex items-center justify-center p-2.5 sm:p-4 md:p-6 overflow-hidden"
-        onMouseDown={handleBackdropMouseDown}
-        onTouchStart={handleBackdropTouchStart}
-        onClick={handleBackdropClick}
+        data-testid="checkout-modal-backdrop"
+        className="fixed inset-0 bg-ink/60 backdrop-blur-xs transition-opacity cursor-pointer"
+        onClick={() => {
+          if (!loading && !isSubmittingRef.current) {
+            onClose();
+          }
+        }}
+        aria-hidden="true"
+      />
+      <form
+        id="checkout-order-form"
+        onSubmit={handlePlaceOrder}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="checkout-modal-title"
+        className="relative z-10 bg-card border border-border/80 w-full max-w-2xl rounded-2xl sm:rounded-3xl shadow-2xl overflow-hidden flex flex-col h-full max-h-[calc(100dvh-1.25rem)] sm:max-h-[min(90dvh,840px)] animate-in zoom-in-95 duration-200"
+        onClick={(e) => e.stopPropagation()}
       >
-        <form
-          id="checkout-order-form"
-          onSubmit={handlePlaceOrder}
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="checkout-modal-title"
-          className="bg-card border border-border/80 w-full max-w-2xl rounded-2xl sm:rounded-3xl shadow-2xl overflow-hidden flex flex-col h-full max-h-[calc(100dvh-1.25rem)] sm:max-h-[min(90dvh,840px)] animate-in zoom-in-95 duration-200"
-          onClick={(e) => {
-            e.stopPropagation();
-            backdropMouseDownRef.current = false;
-          }}
-          onMouseDown={(e) => {
-            e.stopPropagation();
-            backdropMouseDownRef.current = false;
-          }}
-          onTouchStart={(e) => {
-            e.stopPropagation();
-            backdropMouseDownRef.current = false;
-          }}
-        >
           <HoneypotField value={honeypot} onChange={setHoneypot} />
           {/* Modal Header (Pinned) */}
           <div className="flex items-center justify-between px-5 sm:px-6 py-3.5 sm:py-4 border-b border-border bg-card shrink-0">
@@ -1935,33 +1931,30 @@ export default function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
            z-[240] sits above the checkout modal z-[230].
       ──────────────────────────────────────────────────────────────────────── */}
       {addressFormMode !== null && (
-        <>
+        <div
+          data-testid="address-sheet-overlay"
+          className="fixed inset-0 z-[240] flex items-end sm:items-center justify-center p-0 sm:p-4 md:p-6 animate-in fade-in duration-200"
+          onClick={(e) => {
+            if (e.target === e.currentTarget && !addressFormSaving) {
+              handleCloseAddressSheet();
+            }
+          }}
+        >
           {/* Backdrop — clicking closes sheet without saving */}
           <div
-            className="fixed inset-0 bg-ink/40 backdrop-blur-xs z-[238] animate-in fade-in"
-            onClick={handleCloseAddressSheet}
+            data-testid="address-sheet-backdrop"
+            className="fixed inset-0 bg-ink/40 backdrop-blur-xs transition-opacity cursor-pointer"
+            onClick={() => {
+              if (!addressFormSaving) {
+                handleCloseAddressSheet();
+              }
+            }}
+            aria-hidden="true"
           />
           <div
-            className="fixed inset-0 z-[240] flex items-end sm:items-center justify-center p-0 sm:p-4 md:p-6"
-            onMouseDown={handleAddressSheetMouseDown}
-            onTouchStart={handleAddressSheetTouchStart}
-            onClick={handleAddressSheetClick}
+            className="relative z-10 bg-card border border-border/80 w-full max-w-xl rounded-t-2xl sm:rounded-3xl shadow-2xl overflow-hidden animate-in slide-in-from-bottom-4 sm:zoom-in-95 duration-200"
+            onClick={(e) => e.stopPropagation()}
           >
-            <div
-              className="bg-card border border-border/80 w-full max-w-xl rounded-t-2xl sm:rounded-3xl shadow-2xl overflow-hidden animate-in slide-in-from-bottom-4 sm:zoom-in-95 duration-200"
-              onClick={(e) => {
-                e.stopPropagation();
-                addressSheetMouseDownRef.current = false;
-              }}
-              onMouseDown={(e) => {
-                e.stopPropagation();
-                addressSheetMouseDownRef.current = false;
-              }}
-              onTouchStart={(e) => {
-                e.stopPropagation();
-                addressSheetMouseDownRef.current = false;
-              }}
-            >
               {/* Sheet header */}
               <div className="flex items-center justify-between px-5 sm:px-6 md:px-8 py-4 sm:py-5 border-b border-border">
                 <div className="flex items-center gap-2.5">
@@ -2039,7 +2032,6 @@ export default function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
               </div>
             </div>
           </div>
-        </>
       )}
     </>
   );

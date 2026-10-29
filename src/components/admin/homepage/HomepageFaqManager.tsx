@@ -147,13 +147,16 @@ export default function HomepageFaqManager({
             Create, edit, reorder, or toggle FAQs displayed on the public storefront and linked from the footer.
           </p>
         </div>
-        <div className="flex items-center gap-2.5 self-end sm:self-auto">
+        <div
+          data-testid="faq-header-actions"
+          className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 w-full sm:w-auto self-stretch sm:self-auto"
+        >
           {isDirty && (
             <button
               type="button"
               onClick={handleReset}
               disabled={disabled || saving}
-              className="px-3 py-1.5 rounded-xl border border-border text-xs font-semibold text-muted-foreground hover:text-foreground hover:bg-secondary/60 transition-colors flex items-center gap-1.5 cursor-pointer"
+              className="px-3 py-1.5 rounded-xl border border-border text-xs font-semibold text-muted-foreground hover:text-foreground hover:bg-secondary/60 transition-colors flex items-center justify-center gap-1.5 cursor-pointer w-full sm:w-auto"
             >
               <RotateCcw size={13} />
               <span>Reset</span>
@@ -163,7 +166,7 @@ export default function HomepageFaqManager({
             type="button"
             onClick={handleSave}
             disabled={disabled || saving || !isDirty}
-            className={`px-4 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+            className={`px-4 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer w-full sm:w-auto ${
               isDirty
                 ? "bg-primary text-primary-foreground hover:opacity-90 shadow-sm"
                 : "bg-muted text-muted-foreground cursor-not-allowed opacity-60"

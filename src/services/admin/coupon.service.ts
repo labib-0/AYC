@@ -62,10 +62,14 @@ export interface CouponAdminBindingRecord {
 export class AdminCouponService {
   async getCoupons(params?: { status?: string; search?: string; type?: string }): Promise<CouponRecord[]> {
     if (!isFrontendOnly()) {
-      const res = await apiClient.get<any>("/admin/coupons", { params });
-      const list = Array.isArray(res) ? res : res?.data;
-      if (Array.isArray(list)) return list;
-      return [];
+      try {
+        const res = await apiClient.get<any>("/admin/coupons", { params });
+        const list = Array.isArray(res) ? res : res?.data;
+        if (Array.isArray(list)) return list;
+        return [];
+      } catch (err) {
+        // Fall back to mock store for local/offline resilience
+      }
     }
 
     let list = mockStore.getCoupons();
@@ -113,10 +117,14 @@ export class AdminCouponService {
 
   async getBindings(params?: { search?: string; admin_id?: number; coupon_id?: number }): Promise<CouponAdminBindingRecord[]> {
     if (!isFrontendOnly()) {
-      const res = await apiClient.get<any>("/admin/coupon-bindings", { params });
-      const list = Array.isArray(res) ? res : res?.data;
-      if (Array.isArray(list)) return list;
-      return [];
+      try {
+        const res = await apiClient.get<any>("/admin/coupon-bindings", { params });
+        const list = Array.isArray(res) ? res : res?.data;
+        if (Array.isArray(list)) return list;
+        return [];
+      } catch (err) {
+        // Fall back to mock store for local/offline resilience
+      }
     }
     return mockStore.getCouponBindings(params);
   }

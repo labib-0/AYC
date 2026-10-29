@@ -42,7 +42,6 @@ export function DashboardMobileNav() {
   const pathname = usePathname();
   const router = useRouter();
   const [showSignOutConfirm, setShowSignOutConfirm] = useState(false);
-  const signOutMouseDownRef = useRef(false);
   const activeRef = useRef<HTMLAnchorElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -101,7 +100,7 @@ export function DashboardMobileNav() {
     : "AY";
 
   return (
-    <div className="lg:hidden mb-4">
+    <div data-testid="dashboard-mobile-nav" className="lg:hidden mb-4">
       {/* Buyer Quick Badge */}
       <div className="flex items-center justify-between bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-white/10 rounded-xl p-3 mb-2.5 shadow-2xs">
         <div className="flex items-center gap-2.5 min-w-0">
@@ -158,37 +157,29 @@ export function DashboardMobileNav() {
       {/* Sign Out Modal */}
       {showSignOutConfirm && (
         <div
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="mobile-signout-dialog-title"
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4 animate-in fade-in"
-          onMouseDown={(e) => {
-            signOutMouseDownRef.current = e.target === e.currentTarget;
-          }}
-          onTouchStart={(e) => {
-            signOutMouseDownRef.current = e.target === e.currentTarget;
-          }}
+          data-testid="mobile-signout-modal-overlay"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-hidden animate-in fade-in"
           onClick={(e) => {
-            if (e.target === e.currentTarget && signOutMouseDownRef.current) {
+            if (e.target === e.currentTarget) {
               setShowSignOutConfirm(false);
             }
-            signOutMouseDownRef.current = false;
           }}
         >
+          {/* Explicit backdrop layer */}
           <div
-            className="bg-white dark:bg-slate-900 rounded-2xl p-6 max-w-xs w-full shadow-xl border border-slate-200 dark:border-white/10 text-center relative animate-in zoom-in-95 duration-150"
-            onClick={(e) => {
-              e.stopPropagation();
-              signOutMouseDownRef.current = false;
-            }}
-            onMouseDown={(e) => {
-              e.stopPropagation();
-              signOutMouseDownRef.current = false;
-            }}
-            onTouchStart={(e) => {
-              e.stopPropagation();
-              signOutMouseDownRef.current = false;
-            }}
+            data-testid="mobile-signout-modal-backdrop"
+            className="fixed inset-0 bg-black/50 backdrop-blur-xs transition-opacity cursor-pointer"
+            onClick={() => setShowSignOutConfirm(false)}
+            aria-hidden="true"
+          />
+
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="mobile-signout-dialog-title"
+            data-testid="mobile-signout-modal-card"
+            className="relative z-10 bg-white dark:bg-slate-900 rounded-2xl p-6 max-w-xs w-full shadow-xl border border-slate-200 dark:border-white/10 text-center animate-in zoom-in-95 duration-150"
+            onClick={(e) => e.stopPropagation()}
           >
             {/* Close button */}
             <button

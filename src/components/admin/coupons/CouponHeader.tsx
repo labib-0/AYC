@@ -29,6 +29,7 @@ export default function CouponHeader({
           onClick={onAddCoupon}
           className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-2 px-4 sm:px-5 py-2.5 min-h-[40px] rounded-full bg-primary text-primary-foreground font-bold text-xs uppercase tracking-wider hover:opacity-90 transition-all shadow-sm cursor-pointer whitespace-nowrap"
           id="btn-add-coupon"
+          data-testid="btn-add-coupon"
         >
           <Plus size={15} className="shrink-0" />
           <span>Add Coupon</span>
