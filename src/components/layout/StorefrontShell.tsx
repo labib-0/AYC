@@ -7,6 +7,7 @@ import Footer from "@/components/layout/Footer";
 import MiniCart from "@/components/cart/MiniCart";
 import ProductQuickAddModal from "@/components/product/ProductQuickAddModal";
 import GlobalToast from "@/components/common/GlobalToast";
+import GlobalPageViewTracker from "@/components/analytics/GlobalPageViewTracker";
 
 interface StorefrontShellProps {
   children: React.ReactNode;
@@ -40,6 +41,7 @@ export default function StorefrontShell({
   // On Storefront routes: render full customer ecommerce layout
   return (
     <div className="flex flex-col min-h-screen bg-background text-foreground">
+      <GlobalPageViewTracker />
       <Header />
       <MiniCart />
       <ProductQuickAddModal />

@@ -26,7 +26,8 @@
  *
  * 4. Page View:
  *    - Destination: AW-18504838697/UcUXCP6W56YdEKnc5fdE
- *    - Status: Dormant (Unresolved target URL). Exposed as typed helper but not called globally.
+ *    - Status: Active globally via src/components/analytics/GlobalPageViewTracker.tsx
+ *    - Choke Point: Mounted in StorefrontShell.tsx across all storefront & customer routes
  *
  * ============================================================================
  * SAFETY & PRIVACY INVARIANTS:
@@ -74,6 +75,83 @@ export interface OrderConversionPayload {
   order_number?: string | null;
   total_amount?: number | string | null;
   currency?: string | null;
+}
+
+export interface PageViewPayload {
+  page_path?: string;
+  page_location?: string;
+  page_title?: string;
+  page_referrer?: string;
+  value?: number;
+  currency?: string;
+}
+
+export interface SanitizedUrlResult {
+  cleanPath: string;
+  cleanUrl: string;
+  hasRedactedParams: boolean;
+}
+
+const SENSITIVE_PARAM_REGEX =
+  /(token|secret|password|passwd|auth|api_?key|access_?token|refresh_?token|id_?token|session|email|phone|credit|card|cvv|pin|jwt)/i;
+
+/**
+ * Sanitizes path and search parameters for analytics tracking.
+ * - Retains safe marketing and catalog parameters (utm_*, gclid, category, sort, page, query, etc.).
+ * - Strips sensitive authentication tokens, passwords, customer email addresses, and secret credentials.
+ * - Strips in-page hash fragments to prevent false duplicate page views.
+ */
+export function sanitizeTrackingUrl(
+  pathname: string,
+  searchParams?: URLSearchParams | string | null,
+  origin = typeof window !== "undefined" ? window.location.origin : "https://ayaanclothing.com"
+): SanitizedUrlResult {
+  const cleanPathname = pathname ? (pathname.startsWith("/") ? pathname : `/${pathname}`) : "/";
+  const pathWithoutHash = cleanPathname.split("#")[0] || "/";
+
+  if (!searchParams) {
+    return {
+      cleanPath: pathWithoutHash,
+      cleanUrl: `${origin}${pathWithoutHash}`,
+      hasRedactedParams: false,
+    };
+  }
+
+  const rawParams =
+    typeof searchParams === "string"
+      ? new URLSearchParams(searchParams.startsWith("?") ? searchParams.slice(1) : searchParams)
+      : new URLSearchParams(searchParams.toString());
+
+  const cleanParams = new URLSearchParams();
+  let hasRedactedParams = false;
+
+  rawParams.forEach((value, key) => {
+    // Redact sensitive parameter keys
+    if (SENSITIVE_PARAM_REGEX.test(key)) {
+      hasRedactedParams = true;
+      return;
+    }
+
+    // Redact values matching email patterns
+    if (value.includes("@") && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim())) {
+      hasRedactedParams = true;
+      return;
+    }
+
+    // Redact values that look like sensitive tokens/secrets (> 50 chars alphanumeric)
+    if (value.length > 50 && /^[A-Za-z0-9_\-\.]+$/.test(value)) {
+      hasRedactedParams = true;
+      return;
+    }
+
+    cleanParams.append(key, value);
+  });
+
+  const queryStr = cleanParams.toString();
+  const cleanPath = queryStr ? `${pathWithoutHash}?${queryStr}` : pathWithoutHash;
+  const cleanUrl = `${origin}${cleanPath}`;
+
+  return { cleanPath, cleanUrl, hasRedactedParams };
 }
 
 /**
@@ -281,13 +359,9 @@ export function trackPurchaseConversion(params: {
 /**
  * 4. Page View Conversion
  * Destination: AW-18504838697/UcUXCP6W56YdEKnc5fdE
- * Kept DORMANT. Not triggered automatically on route transitions.
+ * Dispatched on initial load and client-side route transitions across the storefront.
  */
-export function trackPageViewConversion(params?: {
-  page_path?: string;
-  value?: number;
-  currency?: string;
-}): boolean {
+export function trackPageViewConversion(params?: PageViewPayload): boolean {
   const val = params?.value !== undefined && !isNaN(params.value) && params.value >= 0 ? params.value : 1.0;
   const curr = params?.currency || "USD";
 
@@ -300,8 +374,39 @@ export function trackPageViewConversion(params?: {
   if (params?.page_path) {
     payload.page_path = params.page_path;
   }
+  if (params?.page_location) {
+    payload.page_location = params.page_location;
+  }
+  if (params?.page_title) {
+    payload.page_title = params.page_title;
+  }
+  if (params?.page_referrer) {
+    payload.page_referrer = params.page_referrer;
+  }
 
   return safeGtagEvent("conversion", payload);
+}
+
+/**
+ * Dispatches standard page_view event to dataLayer for SPA analytics continuity.
+ */
+export function trackGenericPageView(params?: PageViewPayload): boolean {
+  const payload: Record<string, any> = {};
+
+  if (params?.page_path) {
+    payload.page_path = params.page_path;
+  }
+  if (params?.page_location) {
+    payload.page_location = params.page_location;
+  }
+  if (params?.page_title) {
+    payload.page_title = params.page_title;
+  }
+  if (params?.page_referrer) {
+    payload.page_referrer = params.page_referrer;
+  }
+
+  return safeGtagEvent("page_view", payload);
 }
 
 /**
