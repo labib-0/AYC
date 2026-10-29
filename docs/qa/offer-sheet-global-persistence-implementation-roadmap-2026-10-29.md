@@ -169,7 +169,54 @@ If any of the following occur during deployment in Prompt 3:
 - **TypeScript Check:** `npx tsc --noEmit` exited 0.
 - **Next.js Production Build:** `npm run build` completed successfully (61/61 static/dynamic pages compiled).
 
-### 5.3 Ready for Prompt 3
-All code and test modifications are in place locally. No Git commits, pushes, or VPS modifications were performed during Prompt 2. Prompt 3 will proceed directly to synchronized deployment and live Chromium verification on `https://ayaanclothing.com`.
+### 5.3 Prompt 2 Completion
+All code and test modifications were completed locally during Prompt 2.
+
+---
+
+## 6. Prompt 3 Execution & Live Production Verification Results
+
+### 6.1 Deployment Summary
+- **Source Commit:** `78a4260`
+- **GitHub Remote:** Pushed to `origin/main` at `78a4260`.
+- **Deployed Release:** `release_20261029_131318_78a4260`
+- **Release Verification:** All 4 gates passed (PM2 daemons, backend health, HTML routes, 100% static assets HTTP 200).
+
+### 6.2 Catalog Regeneration & Reconciliation Metrics
+- **Catalog Size:** 166 Published Products
+- **Initial Stale Artifacts (Prompt 1/2):** 165 Stale (`v15.0`) + 1 Failed (Product 237, exceeded 2 MB)
+- **Targeted Product 237 Regeneration:**
+  - SKU: `GUE-TSH-MEN-2005-01`
+  - Previous Size / Error: 2,249,464 bytes / HTTP 500 RuntimeException
+  - Regenerated Size: **1,106,523 bytes (1.06 MB)** (under 2 MB target)
+  - Status: `ready`
+- **Full Catalog Synchronous Rebuild (`php artisan ayaan:pregenerate-offer-sheets --chunk=25`):**
+  - Total Processed: 166
+  - Cache Hits (Product 237): 1
+  - Newly Generated: 165
+  - **Successful Total: 166 (100.0%)**
+  - **Failed Total: 0 (0.0%)**
+  - **Stale Count Remaining: 0 (0.0%)**
+  - Total Duration: 106.38 seconds
+
+### 6.3 Live Chromium Production Verification
+Executed `scripts/verify-offer-sheet-recovery-prod.mjs` against `https://ayaanclothing.com`:
+- **Direct API Streaming (`/api/v1/products/237/offer-sheet`):** HTTP 200 OK, `Content-Type: application/pdf`, `X-PDF-Cache: HIT`, `X-PDF-Size: 1106523`, `X-Product-Version: 2d0769992c89c29d8a1f38974016d93b6232ba842aca2ff0e7b439fa6f3130be`.
+- **Admin Modal Preview:**
+  - Product 237 modal loads instantly with "Fast Persisted View" badge.
+  - Zero error cards or crash text ("Unable to Load Offer Sheet" completely eliminated).
+  - Embedded PDF iframe renders valid binary blob.
+  - Evidence: [`cert-modal-product-237-prod.png`](file:///Users/labibhasan/.gemini/antigravity/brain/ab6734a5-b698-4e7d-8732-c8fdfa7fbc81/cert-modal-product-237-prod.png).
+- **Single-Heading Layout Verification:**
+  - Extracted text from PDF confirms Page 1 contains full identity header (`OFFER SHEET`, `MENS GUESS T-SHIRT`, `GUESS`, `SKU: GUE-TSH-MEN-2005-01`).
+  - Continuation Page 2 and Page 3 cleanly omit repeated headings and continuation bars.
+  - Running footer accurately prints `OS-GUE-TSH-MEN-2005-01 | 2026-10-29 | Page X of 3`.
+- **Bulk Merged Offer Sheet (`POST /api/v1/products/bulk-offer-sheet`):**
+  - Successfully merged Product 237 and Product 11 into a 1.48 MB combined PDF.
+  - Each product's section heading renders strictly once on its first page; continuation pages flow without repeating headings.
+- **Customer Fallback Guard:**
+  - Passed `id: (targetItem as any).product_id` in customer order detail page, guaranteeing canonical backend resolution.
+- **Verdict:** `PASS — DEPLOYED, ALL ELIGIBLE PRODUCT PDFs REGENERATED AND VERIFIED`.
+
 
 

@@ -314,6 +314,58 @@ All Prompt 2 implementation items have been successfully executed and validated 
    - 46 tests across 8 test suites passed (100% pass rate).
    - `npx tsc --noEmit` exited 0.
    - `npm run build` completed successfully (61/61 pages).
+
+---
+
+## 11. Prompt 3 Production Deployment & Verification Results
+
+### 11.1 Deployment & Release Verification
+- **Git Commit:** `78a4260` (`feat(offer-sheet): recover single heading layout, increase size budget, and enforce global canonical persistence`)
+- **Remote Synchronization:** Pushed to GitHub `origin/main` at `78a4260`.
+- **Production Active Release:** `release_20261029_131318_78a4260`
+- **Release Gates:** Passed 4/4 release gates (PM2 daemons `ayaan-customer` and `ayaan-admin` online, backend API healthy, HTML routes 200, 33/33 static chunks HTTP 200).
+
+### 11.2 Catalog Reconciliation & Regeneration
+- **Targeted Product 237 Generation:**
+  - SKU: `GUE-TSH-MEN-2005-01` (26 images)
+  - Prior Defect: Exceeded 2.0 MB (2,249,464 bytes), threw HTTP 500.
+  - New Result: Generated in 2.38s, size **1,106,523 bytes (1.06 MB)**.
+  - Status: `ready` (0 errors).
+- **Full Catalog Synchronous Regeneration:**
+  - Total Published Products: 166
+  - Existing Cache Hits: 1 (Product 237)
+  - Newly Generated / Refreshed: 165
+  - **Successful Total: 166 / 166 (100.0%)**
+  - **Failed Total: 0 (0%)**
+  - **Stale Count Remaining: 0 (0%)**
+  - Total Catalog Regeneration Duration: 106.38 seconds.
+
+### 11.3 Live Production Browser & Workflow Verification
+Executed automated Chromium verification script `scripts/verify-offer-sheet-recovery-prod.mjs` against `https://ayaanclothing.com`:
+1. **Direct Link API:** `GET /api/v1/products/237/offer-sheet` returned HTTP 200 OK, `Content-Type: application/pdf`, `X-PDF-Cache: HIT`, `X-PDF-Size: 1106523`, and SHA-256 fingerprint matching the database.
+2. **Admin Modal Preview:**
+   - Modal opened cleanly for SKU `GUE-TSH-MEN-2005-01`.
+   - "Fast Persisted View" badge rendered with checkmark icon.
+   - Zero error cards, zero crash text ("Unable to Load Offer Sheet" completely eliminated).
+   - Embedded PDF iframe rendered valid binary (`blob:...`).
+   - Visual Evidence: `cert-modal-product-237-prod.png`.
+3. **Single-Heading Layout Parity:**
+   - Page 1 contains full identity header (`OFFER SHEET`, `MENS GUESS T-SHIRT`, `GUESS`, `SKU: GUE-TSH-MEN-2005-01`, Offer Reference).
+   - Page 2 and Page 3 cleanly omit repeated heading blocks and continuation bars.
+   - Running footer accurately prints `OS-GUE-TSH-MEN-2005-01 | 2026-10-29 | Page X of 3`.
+4. **Bulk Merged Offer Sheet:**
+   - `POST /api/v1/products/bulk-offer-sheet` for products 237 + 11 returned HTTP 200 OK, `Content-Type: application/pdf`, size 1.48 MB.
+   - Merged PDF displays Product 237 heading strictly on Page 1 (omitted on Pages 2–3) and Product 11 heading strictly on Page 4.
+5. **Customer Fallback Guard:**
+   - Customer order detail page (`src/app/dashboard/orders/[id]/page.tsx`) passes `id: (targetItem as any).product_id` ensuring canonical backend artifact resolution, and alerts gracefully on failure rather than generating divergent client-side documents.
+6. **Token Hygiene:**
+   - Temporary QA token was deleted immediately after test completion. Zero customer tokens affected.
+
+### 11.4 Final Evidence Files
+- [`cert-modal-product-237-prod.png`](file:///Users/labibhasan/.gemini/antigravity/brain/ab6734a5-b698-4e7d-8732-c8fdfa7fbc81/cert-modal-product-237-prod.png)
+- [`Offer-Sheet-GUE-TSH-MEN-2005-01.pdf`](file:///Users/labibhasan/.gemini/antigravity/brain/ab6734a5-b698-4e7d-8732-c8fdfa7fbc81/Offer-Sheet-GUE-TSH-MEN-2005-01.pdf)
+- [`AYC-Combined-Offer-Sheet-237-11.pdf`](file:///Users/labibhasan/.gemini/antigravity/brain/ab6734a5-b698-4e7d-8732-c8fdfa7fbc81/AYC-Combined-Offer-Sheet-237-11.pdf)
+
    - Zero Git commits or pushes made. Zero VPS changes made.
 
 
