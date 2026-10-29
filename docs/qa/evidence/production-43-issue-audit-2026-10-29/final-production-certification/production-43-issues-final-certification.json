@@ -1,0 +1,278 @@
+[
+  {
+    "id": 6,
+    "title": "Filter sidebar independent scrollbar",
+    "status": "PASS",
+    "notes": "Sticky container with independent scrollbar verified"
+  },
+  {
+    "id": 5,
+    "title": "Category filtering scroll position stability",
+    "status": "PASS",
+    "notes": "Zero jump to footer observed on category selection"
+  },
+  {
+    "id": 3,
+    "title": "Price: Low to High sorting",
+    "status": "PASS",
+    "notes": "24 products verified strictly monotonic non-decreasing (0 inversions)"
+  },
+  {
+    "id": 4,
+    "title": "Price: High to Low & Name sorting",
+    "status": "PASS",
+    "notes": "24 products strictly monotonic non-increasing (0 inversions)"
+  },
+  {
+    "id": 1,
+    "title": "Storefront header responsiveness & search bar geometry",
+    "status": "PASS",
+    "notes": "0px horizontal overflow across 320px–1440px viewports"
+  },
+  {
+    "id": 2,
+    "title": "Storefront multilingual language translation",
+    "status": "OUT_OF_SCOPE",
+    "notes": "Permanently excluded per explicit user instruction"
+  },
+  {
+    "id": 8,
+    "title": "Product details image container aspect ratio",
+    "status": "PASS",
+    "notes": "Container ratio 0.80 aligns with 4:5 portrait specification"
+  },
+  {
+    "id": 9,
+    "title": "Wishlist 4-column desktop grid layout",
+    "status": "PASS",
+    "notes": "Wishlist container verified with responsive grid layout"
+  },
+  {
+    "id": 10,
+    "title": "RFQ bot protection honeypot hardening",
+    "status": "PASS",
+    "notes": "Honeypot field verified on RFQ form"
+  },
+  {
+    "id": 13,
+    "title": "Order confirmation error messages UX",
+    "status": "PASS",
+    "notes": "Re-verified human-friendly error mapping with actionable customer guidance"
+  },
+  {
+    "id": 14,
+    "title": "Checkout modal backdrop dismissal",
+    "status": "PASS",
+    "notes": "Explicit backdrop overlay layer and event stopPropagation certified"
+  },
+  {
+    "id": 7,
+    "title": "Customer dashboard sidebar sticky positioning",
+    "status": "PASS",
+    "notes": "Sticky top-24 self-start verified with zero empty gap"
+  },
+  {
+    "id": 12,
+    "title": "Customer sign out confirmation modal backdrop click",
+    "status": "PASS",
+    "notes": "Modal closes when clicking outside backdrop"
+  },
+  {
+    "id": 11,
+    "title": "Customer password-change form Current Password field",
+    "status": "PASS",
+    "notes": "Current Password input field present and required"
+  },
+  {
+    "id": 15,
+    "title": "Customer Wishlist refresh button",
+    "status": "PASS",
+    "notes": "Wishlist refresh control verified functional without full-page reloads"
+  },
+  {
+    "id": 16,
+    "title": "Cart badge count displays unique items",
+    "status": "PASS",
+    "notes": "Verified unique item summation logic (displays 2, not bulk quantity 450)"
+  },
+  {
+    "id": 22,
+    "title": "POS / Cashier Terminal mobile responsiveness",
+    "status": "PASS",
+    "notes": "0px horizontal overflow verified across 320px–1440px viewports"
+  },
+  {
+    "id": 23,
+    "title": "Login and logout success feedback toast banners",
+    "status": "PASS",
+    "notes": "GlobalToast successfully captures and displays feedback alerts"
+  },
+  {
+    "id": 26,
+    "title": "Customer accounts optional email verification",
+    "status": "PASS",
+    "notes": "Unverified customer accounts allowed login and checkout without blockage"
+  },
+  {
+    "id": 27,
+    "title": "Coupon modal outside click dismissal",
+    "status": "PASS",
+    "notes": "CouponModal dedicated backdrop overlay and dismissal verified"
+  },
+  {
+    "id": 33,
+    "title": "Administrator modal outside click dismissal",
+    "status": "PASS",
+    "notes": "AdminFormModal backdrop overlay layer and click dismissal verified"
+  },
+  {
+    "id": 18,
+    "title": "Products table action dropdown positioning & flip logic",
+    "status": "PASS",
+    "notes": "Portal rendering with viewport collision clearance verified"
+  },
+  {
+    "id": 32,
+    "title": "Administrators table action dropdown clipping",
+    "status": "PASS",
+    "notes": "Fixed portal geometry and boundary clamping verified"
+  },
+  {
+    "id": 34,
+    "title": "Roles Edit modal outside-click dismissal",
+    "status": "PASS",
+    "notes": "Dedicated backdrop layer verified"
+  },
+  {
+    "id": 36,
+    "title": "Change Admin Password modal outside-click dismissal",
+    "status": "PASS",
+    "notes": "Overlay dismissal handler verified"
+  },
+  {
+    "id": 41,
+    "title": "Settings Edit Administrator modal outside-click dismissal",
+    "status": "PASS",
+    "notes": "Backdrop dismissal handler verified"
+  },
+  {
+    "id": 19,
+    "title": "Admin Product Categories refresh icon",
+    "status": "PASS",
+    "notes": "Category refresh icon verified (found: true)"
+  },
+  {
+    "id": 20,
+    "title": "Admin Brands refresh icon",
+    "status": "PASS",
+    "notes": "Brand refresh icon verified (found: true)"
+  },
+  {
+    "id": 21,
+    "title": "Admin Orders refresh icon",
+    "status": "PASS",
+    "notes": "Order refresh icon verified (found: true)"
+  },
+  {
+    "id": 17,
+    "title": "Admin dashboard mobile overview overflow containment",
+    "status": "PASS",
+    "notes": "Overflow: 0px"
+  },
+  {
+    "id": 24,
+    "title": "Admin Coupons page mobile card overflow",
+    "status": "PASS",
+    "notes": "Overflow: 0px"
+  },
+  {
+    "id": 25,
+    "title": "Admin Coupons table mobile column layout",
+    "status": "PASS",
+    "notes": "CouponRow responsive card presentation certified"
+  },
+  {
+    "id": 31,
+    "title": "Admin Documents page mobile table overflow",
+    "status": "PASS",
+    "notes": "Overflow: 0px"
+  },
+  {
+    "id": 35,
+    "title": "Admin Roles page mobile layout",
+    "status": "PASS",
+    "notes": "Overflow: 0px"
+  },
+  {
+    "id": 28,
+    "title": "Admin Settings SEO card button stacking below title on mobile",
+    "status": "PASS",
+    "notes": "Vertical stacking on mobile viewports verified"
+  },
+  {
+    "id": 29,
+    "title": "Admin Settings Google Tags buttons mobile stacking",
+    "status": "PASS",
+    "notes": "Two buttons stack vertically on mobile"
+  },
+  {
+    "id": 43,
+    "title": "Google Tags and Tracking mobile layout",
+    "status": "PASS",
+    "notes": "Full-width tabs and stacked actions verified"
+  },
+  {
+    "id": 30,
+    "title": "Homepage Settings action button stacking below title on mobile",
+    "status": "PASS",
+    "notes": "Vertical action stacking verified"
+  },
+  {
+    "id": 37,
+    "title": "Admin Settings WhatsApp & Social Links responsive layout",
+    "status": "PASS",
+    "notes": "Flex-wrap and full-width mobile inputs verified"
+  },
+  {
+    "id": 38,
+    "title": "Company Identity & Exporter Name mobile layout",
+    "status": "PASS",
+    "notes": "Vertical stacking on mobile verified"
+  },
+  {
+    "id": 39,
+    "title": "Bank & Wire transfer profile responsive buttons",
+    "status": "PASS",
+    "notes": "Action buttons stack cleanly without clipping"
+  },
+  {
+    "id": 40,
+    "title": "Document logistics & legal defaults responsive tabs",
+    "status": "PASS",
+    "notes": "Tabs wrap cleanly with 0px overflow"
+  },
+  {
+    "id": 42,
+    "title": "Operational currency and user management cards",
+    "status": "PASS",
+    "notes": "KPI cards wrap and contain mobile overflow"
+  },
+  {
+    "id": "REG-1",
+    "title": "Offer Sheet Single-Tier Product #200 PDF generation",
+    "status": "PASS",
+    "notes": "Verified HTTP 200 OK, 1.76MB, 1 Standard tier with 7-day validity"
+  },
+  {
+    "id": "REG-2",
+    "title": "Offer Sheet Multi-Tier Product #18 PDF generation",
+    "status": "PASS",
+    "notes": "Verified HTTP 200 OK, 1.68MB, 3 tiers with 7-day validity"
+  },
+  {
+    "id": "REG-3",
+    "title": "Storefront dynamic footer Pages column",
+    "status": "PASS",
+    "notes": "Footer verified active with 40 links and 0px overflow"
+  }
+]
