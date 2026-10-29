@@ -311,27 +311,33 @@ export default function CustomerOrderDetailPage({ params }: Props) {
       if (docType === "OFFER_SHEET") {
         const targetItem = fallbackItem || order.items?.[0];
         if (targetItem) {
-          downloadProductOfferSheetPDF(
-            {
-              name: targetItem.product_name,
-              sku: targetItem.sku,
-              price: targetItem.unit_price,
-              moq: targetItem.quantity,
-              imageUrl: targetItem.product_image_url,
-              images:
-                (targetItem as any).product_images ||
-                (targetItem as any).images ||
-                (targetItem.product_image_url ? [targetItem.product_image_url] : []),
-              packageBreakdown: targetItem.package_breakdown,
-            },
-            {
-              name: order.shipping_name,
-              company: order.shipping_company,
-              email: order.email,
-              country: order.shipping_country_code,
-            },
-            targetItem.quantity
-          );
+          try {
+            await downloadProductOfferSheetPDF(
+              {
+                id: (targetItem as any).product_id,
+                name: targetItem.product_name,
+                sku: targetItem.sku,
+                price: targetItem.unit_price,
+                moq: targetItem.quantity,
+                imageUrl: targetItem.product_image_url,
+                images:
+                  (targetItem as any).product_images ||
+                  (targetItem as any).images ||
+                  (targetItem.product_image_url ? [targetItem.product_image_url] : []),
+                packageBreakdown: targetItem.package_breakdown,
+              },
+              {
+                name: order.shipping_name,
+                company: order.shipping_company,
+                email: order.email,
+                country: order.shipping_country_code,
+              },
+              targetItem.quantity
+            );
+          } catch (offerErr: any) {
+            console.error("[AYC] Offer Sheet download retry failed:", offerErr);
+            alert("Unable to download the official Offer Sheet at this time. Please retry in a few moments.");
+          }
         }
       } else if (docType === "PROFORMA_INVOICE") {
         downloadProformaInvoicePDF(order);

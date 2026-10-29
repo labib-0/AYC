@@ -506,22 +506,6 @@
         {{-- 5b. Subsequent Continuation Gallery Pages (Max 4 Rows per Page) --}}
         @foreach($continuationPages as $contPageIdx => $contRows)
             <div class="page-break"></div>
-            <div class="continuation-bar">
-                <table style="width: 100%; table-layout: fixed;">
-                    <tr>
-                        <td style="width: 60%; vertical-align: middle;">
-                            @if(!empty($brandName))
-                                <span class="product-brand" style="font-size: 8.5pt;">{{ mb_strtoupper($brandName, 'UTF-8') }}</span>
-                            @endif
-                            <span class="product-sku" style="font-size: 8.5pt;">{{ $productName }} &bull; SKU: {{ $sku }}</span>
-                        </td>
-                        <td style="width: 40%; text-align: right; vertical-align: middle;">
-                            <span class="meta-label">OFFER REF: </span>
-                            <span class="meta-val" style="font-size: 8pt;">{{ $docNumber }}</span>
-                        </td>
-                    </tr>
-                </table>
-            </div>
             <div class="section-heading" style="margin-top: 4px;">PRODUCT GALLERY</div>
             <table class="gallery-table gallery-table-continuation">
                 @foreach($contRows as $row)
@@ -544,25 +528,9 @@
             </table>
         @endforeach
 
-        {{-- Explicit clean page break with continuation header when required by printable dimensions --}}
+        {{-- Explicit clean page break when required by printable dimensions --}}
         @if($specsNeedPageBreak)
             <div class="page-break"></div>
-            <div class="continuation-bar">
-                <table style="width: 100%; table-layout: fixed;">
-                    <tr>
-                        <td style="width: 60%; vertical-align: middle;">
-                            @if(!empty($brandName))
-                                <span class="product-brand" style="font-size: 8.5pt;">{{ mb_strtoupper($brandName, 'UTF-8') }}</span>
-                            @endif
-                            <span class="product-sku" style="font-size: 8.5pt;">{{ $productName }} &bull; SKU: {{ $sku }}</span>
-                        </td>
-                        <td style="width: 40%; text-align: right; vertical-align: middle;">
-                            <span class="meta-label">OFFER REF: </span>
-                            <span class="meta-val" style="font-size: 8pt;">{{ $docNumber }}</span>
-                        </td>
-                    </tr>
-                </table>
-            </div>
         @endif
 
         {{-- 6. Specifications: Two-Column Table with Alternating Light-Grey Rows --}}

@@ -3530,7 +3530,33 @@ class ProductController extends ApiController
             ], 'Product Offer Sheet status retrieved successfully');
         }
 
-        $artifact = $service->getOrGenerate($product, $request->boolean('force'));
+        try {
+            $artifact = $service->getOrGenerate($product, $request->boolean('force'));
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error("Offer Sheet generation failed for Product #{$product->id}: " . $e->getMessage(), [
+                'exception' => $e,
+            ]);
+
+            $isPdfRequested = $request->query('format') === 'pdf'
+                || $request->has('pdf')
+                || $request->has('download')
+                || $request->is('*offer-sheet/pdf')
+                || str_contains((string) $request->header('Accept'), 'application/pdf')
+                || !$request->wantsJson();
+
+            if ($isPdfRequested && !$request->wantsJson()) {
+                return response("Offer Sheet generation failed: " . $e->getMessage(), 500, [
+                    'Content-Type' => 'text/plain',
+                ]);
+            }
+
+            return $this->error("Unable to generate Offer Sheet: " . $e->getMessage(), 422, [
+                'product_id' => $product->id,
+                'sku' => $product->sku,
+                'status' => 'failed',
+                'error' => $e->getMessage(),
+            ]);
+        }
 
         $isPdfRequested = $request->query('format') === 'pdf'
             || $request->has('pdf')

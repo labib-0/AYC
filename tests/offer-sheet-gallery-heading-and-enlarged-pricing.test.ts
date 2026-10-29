@@ -28,22 +28,25 @@ describe("AYC Offer Sheet — Gallery Heading & Enlarged Pricing Typography Suit
     );
   });
 
-  it("2. Continuation identity bar remains fully intact", () => {
-    assert.ok(
-      bladeContent.includes('class="continuation-bar"'),
-      "Continuation bar CSS class must exist"
-    );
+  it("2. Single heading per product: continuation pages do not contain continuation-bar headers", () => {
+    // Primary header on Page 1 must have brand, SKU, and offer reference
     assert.ok(
       bladeContent.includes('$brandName'),
-      "Brand name must be rendered in continuation bar"
+      "Brand name must be rendered in primary header"
     );
     assert.ok(
       bladeContent.includes('SKU: {{ $sku }}'),
-      "SKU must be rendered in continuation bar"
+      "SKU must be rendered in primary header"
     );
     assert.ok(
-      bladeContent.includes('OFFER REF:'),
-      "Offer Ref label must be rendered in continuation bar"
+      bladeContent.includes('OFFER REFERENCE'),
+      "Offer Reference must be rendered in primary header"
+    );
+
+    // Continuation pages must NOT render continuation-bar
+    assert.ok(
+      !bladeContent.includes('<div class="continuation-bar">'),
+      "Blade template must NOT contain '<div class=\"continuation-bar\">' on continuation pages"
     );
   });
 
@@ -101,10 +104,10 @@ describe("AYC Offer Sheet — Gallery Heading & Enlarged Pricing Typography Suit
     );
   });
 
-  it("5. ProductOfferSheetService bumps LAYOUT_VERSION to v15.0", () => {
+  it("5. ProductOfferSheetService bumps LAYOUT_VERSION to v16.0", () => {
     assert.ok(
-      pServiceContent.includes("v15.0_offer_sheet_gallery_heading_and_enlarged_pricing_font"),
-      "LAYOUT_VERSION must be bumped to v15.0_offer_sheet_gallery_heading_and_enlarged_pricing_font"
+      pServiceContent.includes("v16.0_offer_sheet_single_heading_per_product"),
+      "LAYOUT_VERSION must be bumped to v16.0_offer_sheet_single_heading_per_product"
     );
   });
 

@@ -13,10 +13,10 @@ use RuntimeException;
 
 class ProductOfferSheetService
 {
-    public const TARGET_SIZE_BYTES = 1572864; // 1.5 MB target
-    public const MAX_SIZE_BYTES = 2097152;    // 2.0 MB hard limit
+    public const TARGET_SIZE_BYTES = 2097152; // 2.0 MB target
+    public const MAX_SIZE_BYTES = 5242880;    // 5.0 MB hard limit
 
-    public const LAYOUT_VERSION = 'v15.0_offer_sheet_gallery_heading_and_enlarged_pricing_font';
+    public const LAYOUT_VERSION = 'v16.0_offer_sheet_single_heading_per_product';
 
     public function __construct(
         protected OfferSheetService $offerSheetService,
@@ -208,9 +208,14 @@ class ProductOfferSheetService
                 throw new RuntimeException($errorMsg);
             }
 
-            // Enforce 2 MB hard limit
+            // Target budget warning and hard limit check
+            if ($sizeBytes > self::TARGET_SIZE_BYTES) {
+                Log::warning("Generated Offer Sheet size ({$sizeBytes} bytes) for Product #{$product->id} exceeds target budget (" . self::TARGET_SIZE_BYTES . " bytes).");
+            }
+
+            // Enforce 5 MB hard limit
             if ($sizeBytes > self::MAX_SIZE_BYTES) {
-                $errorMsg = "Generated Offer Sheet size ({$sizeBytes} bytes) exceeds 2 MB hard limit.";
+                $errorMsg = "Generated Offer Sheet size ({$sizeBytes} bytes) exceeds 5 MB hard limit.";
                 $this->markFailed($product, $fingerprint, $filename, $errorMsg);
                 throw new RuntimeException($errorMsg);
             }

@@ -63,6 +63,7 @@ export default function ProductOfferSheetModal({
     async (forceRegenerate: boolean = false) => {
       if (!product?.id) return;
 
+      setIsCacheHit(false);
       const baseUrl = apiClient.getBaseUrl();
       const token = apiClient.getToken();
       const headers: Record<string, string> = {
@@ -137,6 +138,7 @@ export default function ProductOfferSheetModal({
       setLoading(true);
       setError(null);
       setIsProcessing(false);
+      setIsCacheHit(false);
       setStatusMessage(forceRegenerate ? "Generating latest Offer Sheet..." : "Checking Offer Sheet status...");
 
       try {
@@ -183,6 +185,7 @@ export default function ProductOfferSheetModal({
         await fetchPdfBinary(false);
       } catch (err: any) {
         console.error("[AYC] Offer Sheet fetch error:", err);
+        setIsCacheHit(false);
         setError(err?.message || "Failed to load product Offer Sheet.");
         setLoading(false);
         setIsProcessing(false);
@@ -192,6 +195,7 @@ export default function ProductOfferSheetModal({
   );
 
   useEffect(() => {
+    setIsCacheHit(false);
     if (!isOpen || !product?.id) {
       setPdfBlob(null);
       if (pdfUrl) {
@@ -294,7 +298,7 @@ export default function ProductOfferSheetModal({
                     Draft
                   </span>
                 )}
-                {isCacheHit && !loading && (
+                {isCacheHit && !loading && !error && pdfBlob && (
                   <span className="hidden md:inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20">
                     <CheckCircle2 size={10} /> Fast Persisted View
                   </span>

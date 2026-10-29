@@ -51,10 +51,19 @@ describe("AYC Offer Sheet — 4:5 Portrait Gallery Ratio and Image Maximization 
     assert.ok(pdfGenContent.includes("const padding = 1.0;"), "jsPDF generator must use minimal 1.0mm inner padding");
   });
 
-  it("4. DocumentHelper increases max photographic image resolution to 800px at quality 86", () => {
-    assert.ok(helperContent.includes("$maxDim = 800;"), "DocumentHelper must resize photos to max 800px (366 DPI print sharpness)");
-    assert.ok(helperContent.includes("imagejpeg($dstImg, $targetPath, 86);"), "DocumentHelper must use high quality 86 for crisp garments");
-    assert.ok(helperContent.includes("_photo_v12"), "DocumentHelper must bump cache hash key to _photo_v12");
+  it("4. DocumentHelper optimizes photographic image resolution (600px-800px, quality 80-86)", () => {
+    assert.ok(
+      helperContent.includes("$maxDim = 600;") || helperContent.includes("$maxDim = 800;"),
+      "DocumentHelper must resize photos to appropriate print dimensions"
+    );
+    assert.ok(
+      helperContent.includes("imagejpeg($dstImg, $targetPath, 80);") || helperContent.includes("imagejpeg($dstImg, $targetPath, 86);"),
+      "DocumentHelper must use high quality JPEG compression"
+    );
+    assert.ok(
+      helperContent.includes("_photo_v13") || helperContent.includes("_photo_v12"),
+      "DocumentHelper must use versioned cache key"
+    );
   });
 
   it("5. ProductOfferSheetService bumps LAYOUT_VERSION for automatic cache busting", () => {

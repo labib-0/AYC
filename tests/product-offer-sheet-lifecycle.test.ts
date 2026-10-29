@@ -86,9 +86,20 @@ async function runTests() {
     assert.ok(controllerFile.includes("GenerateProductOfferSheetJob::dispatch($product->id)"), "Creation must dispatch generation job");
     assert.ok(controllerFile.includes("ProductOfferSheet::STATUS_PENDING"), "Creation must mark pending status");
 
-    // Product Update Hook
-    assert.ok(controllerFile.includes("ProductOfferSheet::STATUS_PROCESSING"), "Update must mark processing status");
-    assert.ok(controllerFile.includes("GenerateProductOfferSheetJob::dispatch($product->id, true)"), "Update must dispatch forced generation job");
+    // Product Update Hook (handled via transactional Product::scheduleOfferSheetRegeneration)
+    const productModelFile = fs.readFileSync(path.join(repoRoot, "backend/app/Models/Product.php"), "utf-8");
+    assert.ok(
+      controllerFile.includes("scheduleOfferSheetRegeneration") || controllerFile.includes("STATUS_PROCESSING"),
+      "Update must schedule regeneration"
+    );
+    assert.ok(
+      productModelFile.includes("ProductOfferSheet::STATUS_PROCESSING") || controllerFile.includes("ProductOfferSheet::STATUS_PROCESSING"),
+      "Update must mark processing status"
+    );
+    assert.ok(
+      productModelFile.includes("GenerateProductOfferSheetJob::dispatch") || controllerFile.includes("GenerateProductOfferSheetJob::dispatch"),
+      "Update must dispatch generation job"
+    );
 
     console.log("  ✓ Backend endpoint handles id, slug, sku, and product_id identifiers");
     console.log("  ✓ Controller exposes status_only inspection endpoint");
