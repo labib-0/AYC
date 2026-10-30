@@ -164,7 +164,7 @@ class HomepageController extends ApiController
             // Collect pinned product IDs to exclude from remaining list (prevents duplication)
             $pinnedProductIds = $selectedFeatured->pluck('product_id')->filter()->values()->toArray();
 
-            // Remaining eligible products in upload order (created_at DESC — newest upload first)
+            // Remaining eligible products in canonical sort_order ASC, id ASC
             // Excludes all pinned products so each product appears exactly once
             $remainingFeatured = Product::query()
                 ->storefrontVisible()
@@ -178,7 +178,8 @@ class HomepageController extends ApiController
                     'pricingTiers',
                     'packageAllocations',
                 ])
-                ->orderBy('created_at', 'desc') // authoritative upload timestamp: newest first
+                ->orderBy('sort_order', 'asc')
+                ->orderBy('id', 'asc')
                 ->get()
                 ->map(function ($p, $idx) use ($selectedFeatured) {
                     return [
@@ -226,7 +227,7 @@ class HomepageController extends ApiController
                         ];
                     });
 
-                    // Remaining products after fallback-pinned exclusion, sorted by created_at DESC, id DESC
+                    // Remaining products after fallback-pinned exclusion, sorted by sort_order ASC, id ASC
                     $fallbackRemaining = Product::query()
                         ->storefrontVisible()
                         ->whereNull('deleted_at')
@@ -239,7 +240,8 @@ class HomepageController extends ApiController
                             'pricingTiers',
                             'packageAllocations',
                         ])
-                        ->orderBy('created_at', 'desc') // newest upload first
+                        ->orderBy('sort_order', 'asc')
+                        ->orderBy('id', 'asc')
                         ->get()
                         ->map(function ($p, $idx) use ($fallbackPinned) {
                             return [

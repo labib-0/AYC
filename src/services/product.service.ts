@@ -1707,6 +1707,10 @@ export class ProductService {
           ? { orders: filteredOrders }
           : { ids: filteredOrders };
       await apiClient.put("/products/reorder", payload);
+      if (typeof window !== "undefined") {
+        homepageService.invalidateStorefrontCache();
+        window.dispatchEvent(new CustomEvent("ayaan:homepage-updated"));
+      }
       return this.getProducts({ all: true, isAdmin: true, sort: "manual" });
     }
 
@@ -1716,6 +1720,10 @@ export class ProductService {
         : (orders as (string | number)[]).map((id, idx) => ({ id, sort_order: idx }));
 
     mockStore.reorderProducts(normalizedOrders);
+    if (typeof window !== "undefined") {
+      homepageService.invalidateStorefrontCache();
+      window.dispatchEvent(new CustomEvent("ayaan:homepage-updated"));
+    }
     return this.getProducts({ all: true, isAdmin: true, sort: "manual" });
   }
 

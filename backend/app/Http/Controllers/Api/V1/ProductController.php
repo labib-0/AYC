@@ -497,10 +497,16 @@ class ProductController extends ApiController
     /**
      * GET /api/v1/products/featured
      *
-     * Returns curated landing-page featured products in authoritative sort order:
-     * 1. Admin-pinned products (sort_order ASC)
-     * 2. Remaining eligible products in upload order (created_at DESC — newest upload first)
-     * Excludes duplicates, non-storefront products, and draft/archived products.
+     * Returns storefront featured products in the authoritative admin manual sequence.
+     *
+     * Default mode: all eligible products ordered by products.sort_order ASC (the canonical
+     * admin manual sequence), with id ASC as a stable tie-breaker. This ensures the storefront
+     * Featured Products section always mirrors the admin product order.
+     *
+     * Best Deals mode: products with an active HOT tag, ordered by created_at DESC.
+     * New Arrivals mode: all storefront-eligible products, ordered by created_at DESC.
+     *
+     * Excludes non-storefront products (draft, archived, hidden, zero-price).
      */
     public function featured(Request $request): JsonResponse
     {
@@ -608,45 +614,23 @@ class ProductController extends ApiController
                     $newQuery->orderBy('created_at', 'desc');
                     $allOrderedIds = $newQuery->pluck('id')->toArray();
                 } else {
-                    // Priority 1: Pinned products in saved manual order (sort_order ASC, product_id ASC tie-breaker)
-                    $pinnedIds = HomepageFeaturedProduct::query()
-                        ->where('is_active', true)
-                        ->whereHas('product', function ($pq) use ($applyStorefrontFilters) {
-                            $applyStorefrontFilters($pq);
-                        })
+                    // Unified admin sort_order ordering: ALL eligible storefront products sorted by
+                    // products.sort_order ASC (the canonical admin manual sequence), with id ASC
+                    // as a stable tie-breaker. This is the single source of truth for product
+                    // ordering — the same sequence shown in the Admin → Catalog → Products page.
+                    //
+                    // Note: The legacy split into "pinned first (HFP.sort_order)" then "remaining
+                    // (created_at DESC)" was the cause of the ordering inconsistency between the
+                    // admin catalog and the storefront Featured Products section. The products
+                    // table sort_order is already kept in sync across all pinned/unpinned products
+                    // by the reorder and position endpoints.
+                    $allEligibleQuery = Product::query();
+                    $applyStorefrontFilters($allEligibleQuery);
+                    $allOrderedIds = $allEligibleQuery
                         ->orderBy('sort_order', 'asc')
-                        ->orderBy('product_id', 'asc')
-                        ->pluck('product_id')
-                        ->filter()
-                        ->values()
-                        ->toArray();
-
-                    // Fallback: If no records in homepage_featured_products, check products with is_pinned = true or is_featured = true
-                    if (empty($pinnedIds)) {
-                        $fallbackPinnedQuery = Product::query()
-                            ->where(function ($q) {
-                                $q->where('is_pinned', true)->orWhere('is_featured', true);
-                            });
-                        $applyStorefrontFilters($fallbackPinnedQuery);
-                        $pinnedIds = $fallbackPinnedQuery
-                            ->orderByRaw('COALESCE(pinned_order, featured_sort_order, sort_order, 0) ASC')
-                            ->orderBy('id', 'asc')
-                            ->pluck('id')
-                            ->toArray();
-                    }
-
-                    // Priority 2: All remaining eligible storefront products in upload order (created_at DESC)
-                    $remainingQuery = Product::query();
-                    $applyStorefrontFilters($remainingQuery);
-                    if (!empty($pinnedIds)) {
-                        $remainingQuery->whereNotIn('id', $pinnedIds);
-                    }
-                    $remainingIds = $remainingQuery
-                        ->orderBy('created_at', 'desc') // authoritative upload timestamp: newest first
+                        ->orderBy('id', 'asc')
                         ->pluck('id')
                         ->toArray();
-
-                    $allOrderedIds = array_merge($pinnedIds, $remainingIds);
                 }
 
                 $total = count($allOrderedIds);

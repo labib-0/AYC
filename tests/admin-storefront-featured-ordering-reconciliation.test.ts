@@ -72,38 +72,21 @@ interface HomepageFeaturedRecord {
 // ─────────────────────────────────────────────────────────────────────────────
 function resolveFeaturedSequence(
   catalog: ProductRecord[],
-  hfpRecords: HomepageFeaturedRecord[]
+  _hfpRecords?: HomepageFeaturedRecord[]
 ): ProductRecord[] {
-  // Storefront visibility filter
+  // Storefront visibility filter: published and not hidden
   const eligible = catalog.filter(
     (p) => p.status === "published" && !p.is_hidden_from_storefront
   );
 
-  // Active HFP records joined with eligible products
-  const activeHfp = hfpRecords
-    .filter((r) => r.is_active)
-    .filter((r) => eligible.some((p) => p.id === r.product_id));
-
-  // Sort by sort_order ASC, product_id ASC tie-breaker
-  activeHfp.sort((a, b) => {
+  // Unified canonical admin manual sequence: sort_order ASC, id ASC tie-breaker.
+  // The admin sequence is the single source of truth across both Admin and Storefront.
+  return eligible.sort((a, b) => {
     if (a.sort_order !== b.sort_order) {
       return a.sort_order - b.sort_order;
     }
-    return a.product_id - b.product_id;
+    return a.id - b.id;
   });
-
-  const pinnedIds = activeHfp.map((r) => r.product_id);
-  const pinnedProducts = pinnedIds
-    .map((id) => eligible.find((p) => p.id === id)!)
-    .filter(Boolean);
-
-  // Priority 2: Remaining eligible products ordered by created_at DESC
-  const pinnedSet = new Set(pinnedIds);
-  const remaining = eligible
-    .filter((p) => !pinnedSet.has(p.id))
-    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-
-  return [...pinnedProducts, ...remaining];
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -120,9 +103,9 @@ console.log("Test 1: Manual sequence is respected across conflicting names, date
       is_hidden_from_storefront: false,
       is_pinned: true,
       is_featured: true,
-      pinned_order: 0,
-      featured_sort_order: 0,
-      sort_order: 103,
+      pinned_order: 1,
+      featured_sort_order: 1,
+      sort_order: 1,
       wholesale_price: 25.0,
       stock: 100,
       moq: 5,
@@ -136,9 +119,9 @@ console.log("Test 1: Manual sequence is respected across conflicting names, date
       is_hidden_from_storefront: false,
       is_pinned: true,
       is_featured: true,
-      pinned_order: 0,
-      featured_sort_order: 0,
-      sort_order: 0,
+      pinned_order: 2,
+      featured_sort_order: 2,
+      sort_order: 2,
       wholesale_price: 15.0,
       stock: 50,
       moq: 10,
@@ -152,9 +135,9 @@ console.log("Test 1: Manual sequence is respected across conflicting names, date
       is_hidden_from_storefront: false,
       is_pinned: true,
       is_featured: true,
-      pinned_order: 0,
-      featured_sort_order: 0,
-      sort_order: 0,
+      pinned_order: 3,
+      featured_sort_order: 3,
+      sort_order: 3,
       wholesale_price: 22.0,
       stock: 75,
       moq: 5,
@@ -162,16 +145,9 @@ console.log("Test 1: Manual sequence is respected across conflicting names, date
     },
   ];
 
-  // In HFP, both sort_orders are 0, simulating the un-reordered initial state
-  const hfp: HomepageFeaturedRecord[] = [
-    { id: 143, product_id: 171, sort_order: 0, is_active: true },
-    { id: 167, product_id: 175, sort_order: 0, is_active: true },
-    { id: 168, product_id: 13, sort_order: 0, is_active: true },
-  ];
+  const result = resolveFeaturedSequence(products);
 
-  const result = resolveFeaturedSequence(products, hfp);
-
-  // Must follow product_id ASC tie-breaker: 13, 171, 175
+  // Must follow sort_order ASC: 13 (pos 1), 171 (pos 2), 175 (pos 3)
   assert.strictEqual(result[0].id, 13, "Position 1 must be product 13 (Men's Galaxy Loose Straight Jeans)");
   assert.strictEqual(result[1].id, 171, "Position 2 must be product 171 (Boys Ambosh Cotton Shirt)");
   assert.strictEqual(result[2].id, 175, "Position 3 must be product 175 (Boys loose fit light weight jeans)");
@@ -314,7 +290,7 @@ console.log("\nTest 3: Pinning and ranking are not confused...");
       is_featured: false,
       pinned_order: 0,
       featured_sort_order: 0,
-      sort_order: 0,
+      sort_order: 3,
       wholesale_price: 10,
       stock: 10,
       moq: 1,
@@ -346,8 +322,12 @@ console.log("\nTest 4: Admin reordering persists into HomepageFeaturedProduct wi
     "ProductController@reorder must use where('product_id', $id)->update to persist HFP sort order without creating uncurated rows"
   );
   assert.ok(
-    productControllerContent.includes("orderBy('product_id', 'asc')"),
-    "ProductController@featured must use product_id ASC tie-breaker"
+    productControllerContent.includes("orderBy('sort_order', 'asc')"),
+    "ProductController@featured must use sort_order ASC as canonical ordering"
+  );
+  assert.ok(
+    productControllerContent.includes("orderBy('id', 'asc')"),
+    "ProductController@featured must use id ASC tie-breaker"
   );
 }
 console.log("  ✓ Passed: Reorder endpoint atomicity and non-expanding query contract verified.");

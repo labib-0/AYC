@@ -131,9 +131,12 @@ export async function getFeaturedProducts(
     (options.categories && options.categories.length > 0)
   );
 
-  // ORDERING RULE: Admin-selected (pinned) products always appear FIRST in their sort_order.
-  // Remaining eligible products follow in created_at DESC (newest upload first).
-  // No product appears twice. This is enforced by the backend; we trust the order returned.
+  // ORDERING RULE (default mode): All eligible storefront products are ordered by
+  // products.sort_order ASC — the canonical admin manual sequence. This is the single
+  // source of truth for product ordering, identical to the Admin → Catalog → Products
+  // Serial No. column. Pinned/non-pinned status does NOT change the ordering.
+  // Best Deals and New Arrivals modes continue to use their own ordering (created_at DESC).
+  // The backend enforces this; the frontend trusts the order returned by the API.
 
   // Primary path: fetch directly from dedicated, paginated backend featured endpoint.
   // AUTHORITATIVE: If the API call succeeds (no exception), the response is final — even if
@@ -172,7 +175,8 @@ export async function getFeaturedProducts(
   try {
     const homepageData = await homepageService.getStorefrontHomepageData();
     if (homepageData?.featured_products && homepageData.featured_products.length > 0) {
-      // Convert all featured products (curated + remaining) to storefront format, preserving server order
+    // Convert all featured products (curated + remaining) to storefront format, preserving server order.
+      // The server already returns products in sort_order ASC (admin manual sequence) for default mode.
       let list: Product[] = homepageData.featured_products
         .filter((fp) => fp.product && (fp.product.status === "published" || !fp.product.status))
         .map((fp) => toStorefrontProduct(fp.product));
@@ -255,7 +259,7 @@ export async function getFeaturedProducts(
     design_type: options.designTypes && options.designTypes.length > 0 ? options.designTypes.join(",") : undefined,
     audience: options.audiences && options.audiences.length > 0 ? options.audiences.join(",") : undefined,
     category: options.categories && options.categories.length > 0 ? options.categories.join(",") : undefined,
-    sort_by: "newest", // created_at DESC — consistent with the required upload-order rule
+    sort_by: "newest", // created_at DESC — last-resort fallback; in-memory sort applied below for default mode
   };
 
   try {
@@ -267,33 +271,14 @@ export async function getFeaturedProducts(
     let orderedProducts = allFiltered;
 
     if (!isBestDeals && !isNew) {
-      const now = Date.now();
-      const isProductFeatured = (p: B2BProductInput) => {
-        const featUntil = p.featuredUntil || p.featured_until;
-        const isExpired = featUntil ? new Date(featUntil).getTime() <= now : false;
-        return (
-          Boolean(
-            p.isPinned ??
-            (p as any).is_pinned ??
-            p.isFeatured ??
-            p.is_featured ??
-            (p as any).featured
-          ) && !isExpired
-        );
-      };
-
-      const pinned = allFiltered
-        .filter(isProductFeatured)
-        .sort((a, b) => {
-          const sa = a.pinnedOrder ?? (a as any).pinned_order ?? a.featuredSortOrder ?? (a as any).featured_sort_order ?? a.sort_order ?? 9999;
-          const sb = b.pinnedOrder ?? (b as any).pinned_order ?? b.featuredSortOrder ?? (b as any).featured_sort_order ?? b.sort_order ?? 9999;
-          if (sa !== sb) return sa - sb;
-          return Number(a.id) - Number(b.id);
-        });
-
-      const pinnedIds = new Set(pinned.map((p) => String(p.id)));
-      const remaining = allFiltered.filter((p) => !pinnedIds.has(String(p.id)));
-      orderedProducts = [...pinned, ...remaining];
+      // Default mode: sort by products.sort_order ASC (admin manual sequence) with id ASC tie-breaker.
+      // This mirrors the backend's authoritative ordering and the admin Serial No. column.
+      orderedProducts = [...allFiltered].sort((a, b) => {
+        const sa = a.sort_order ?? (a as any).sortOrder ?? 9999;
+        const sb = b.sort_order ?? (b as any).sortOrder ?? 9999;
+        if (sa !== sb) return sa - sb;
+        return Number(a.id) - Number(b.id);
+      });
     }
 
     const total = orderedProducts.length;

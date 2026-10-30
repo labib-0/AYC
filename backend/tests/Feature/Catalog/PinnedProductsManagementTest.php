@@ -225,43 +225,51 @@ class PinnedProductsManagementTest extends TestCase
     }
 
     /**
-     * Test 5: Storefront Featured Products places pinned products first, then unpinned by created_at DESC.
+     * Test 5: Storefront Featured Products follows the admin sort_order (products.sort_order ASC)
+     * as the single source of truth. Both pinned and non-pinned products must appear in the
+     * same relative order as the admin catalog — not split by pin status or upload date.
      */
     public function test_storefront_featured_products_ordering(): void
     {
-        // Product A (old, pinned)
-        $pinnedOld = $this->createProduct(['name' => 'Pinned Old']);
-        // Product B (newer, pinned, order 2)
-        $pinnedNewer = $this->createProduct(['name' => 'Pinned Newer']);
+        // Create products with explicit sort_order values to control the sequence.
+        // createProduct() sets sort_order = 100 + auto-incrementing seq.
 
-        HomepageFeaturedProduct::create(['product_id' => $pinnedOld->id, 'sort_order' => 1, 'is_active' => true]);
-        HomepageFeaturedProduct::create(['product_id' => $pinnedNewer->id, 'sort_order' => 2, 'is_active' => true]);
-        Product::where('id', $pinnedOld->id)->update([
-            'is_pinned' => true,
-            'is_featured' => true,
-            'pinned_order' => 1,
+        // Product A: sort_order 101 (first in admin sequence), pinned
+        $productA = $this->createProduct(['name' => 'Product A']);
+        // Product B: sort_order 102 (second), pinned
+        $productB = $this->createProduct(['name' => 'Product B']);
+        // Product C: sort_order 103 (third), NOT pinned
+        $productC = $this->createProduct(['name' => 'Product C']);
+        // Product D: sort_order 104 (fourth), NOT pinned
+        $productD = $this->createProduct(['name' => 'Product D']);
+        // Product E: sort_order 105 (fifth), NOT pinned
+        $productE = $this->createProduct(['name' => 'Product E']);
+
+        // Pin products A and B (add to homepage_featured_products)
+        HomepageFeaturedProduct::create(['product_id' => $productA->id, 'sort_order' => 1, 'is_active' => true]);
+        HomepageFeaturedProduct::create(['product_id' => $productB->id, 'sort_order' => 2, 'is_active' => true]);
+        Product::where('id', $productA->id)->update([
+            'is_pinned'           => true,
+            'is_featured'         => true,
+            'pinned_order'        => 1,
             'featured_sort_order' => 1,
-            'created_at' => now()->subHours(20),
+            // created_at is intentionally OLD to prove ordering is by sort_order, not created_at
+            'created_at'          => now()->subHours(20),
         ]);
-        Product::where('id', $pinnedNewer->id)->update([
-            'is_pinned' => true,
-            'is_featured' => true,
-            'pinned_order' => 2,
+        Product::where('id', $productB->id)->update([
+            'is_pinned'           => true,
+            'is_featured'         => true,
+            'pinned_order'        => 2,
             'featured_sort_order' => 2,
-            'created_at' => now()->subHours(15),
+            'created_at'          => now()->subHours(15),
         ]);
 
-        // Product C (newest unpinned)
-        $unpinnedNewest = $this->createProduct(['name' => 'Unpinned Newest']);
-        Product::where('id', $unpinnedNewest->id)->update(['created_at' => now()->subHours(1)]);
-
-        // Product D (middle unpinned)
-        $unpinnedMiddle = $this->createProduct(['name' => 'Unpinned Middle']);
-        Product::where('id', $unpinnedMiddle->id)->update(['created_at' => now()->subHours(5)]);
-
-        // Product E (oldest unpinned)
-        $unpinnedOldest = $this->createProduct(['name' => 'Unpinned Oldest']);
-        Product::where('id', $unpinnedOldest->id)->update(['created_at' => now()->subHours(10)]);
+        // Assign created_at values that CONTRADICT sort_order on purpose:
+        // C is newest upload, D is middle, E is oldest — but sort_order says C < D < E.
+        // Expected result must follow sort_order, not created_at.
+        Product::where('id', $productC->id)->update(['created_at' => now()->subHours(1)]);   // newest upload
+        Product::where('id', $productD->id)->update(['created_at' => now()->subHours(5)]);   // middle upload
+        Product::where('id', $productE->id)->update(['created_at' => now()->subHours(10)]); // oldest upload
 
         // Query public storefront featured endpoint
         $response = $this->getJson('/api/v1/products/featured?limit=10&offset=0');
@@ -269,18 +277,15 @@ class PinnedProductsManagementTest extends TestCase
 
         $returnedIds = collect($response->json('data'))->pluck('id')->all();
 
-        // Expected sequence:
-        // 1. Pinned Old (sort_order 1)
-        // 2. Pinned Newer (sort_order 2)
-        // 3. Unpinned Newest (created_at newest)
-        // 4. Unpinned Middle (created_at middle)
-        // 5. Unpinned Oldest (created_at oldest)
+        // Expected sequence: all products in ascending sort_order order (101, 102, 103, 104, 105).
+        // Pinned/non-pinned distinction does NOT change the order — sort_order is the single source of truth.
+        // C appears BEFORE D and E even though C was uploaded most recently (created_at is newest).
         $expected = [
-            $pinnedOld->id,
-            $pinnedNewer->id,
-            $unpinnedNewest->id,
-            $unpinnedMiddle->id,
-            $unpinnedOldest->id,
+            $productA->id, // sort_order 101
+            $productB->id, // sort_order 102
+            $productC->id, // sort_order 103 (newest upload, but still in admin sequence)
+            $productD->id, // sort_order 104
+            $productE->id, // sort_order 105
         ];
 
         $this->assertEquals($expected, $returnedIds);
