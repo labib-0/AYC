@@ -21,6 +21,7 @@ import {
   Pin,
   Loader2,
   FileText,
+  ArrowUpDown,
 } from "lucide-react";
 import { B2BProductInput } from "@/types/b2b";
 import { getBrandLogoUrl } from "@/lib/brand-logos";
@@ -42,6 +43,8 @@ interface ProductTableRowProps {
   onViewStockHistory?: (product: B2BProductInput) => void;
   onMarkSoldOut?: (product: B2BProductInput) => void;
   onViewOfferSheet?: (product: B2BProductInput) => void;
+  position?: number;
+  onSort?: (product: B2BProductInput, currentPosition: number) => void;
   globalIndex?: number;
   localIndex?: number;
   showReorderControls?: boolean;
@@ -69,6 +72,8 @@ export default function ProductTableRow({
   onViewStockHistory,
   onMarkSoldOut,
   onViewOfferSheet,
+  position = 0,
+  onSort,
   globalIndex = 0,
   localIndex = 0,
   showReorderControls = false,
@@ -316,6 +321,17 @@ export default function ProductTableRow({
           className="w-3.5 h-3.5 rounded border-border accent-foreground cursor-pointer align-middle"
           aria-label={`Select ${product.name}`}
         />
+      </td>
+
+      {/* Serial No. (Position in complete manual catalog order) */}
+      <td className="px-2 py-2.5 sm:py-3 w-[70px] text-center align-middle" style={{ width: "70px" }}>
+        <span
+          data-testid={`product-serial-${product.id}`}
+          className="text-xs font-mono font-bold tabular-nums text-foreground/80 bg-secondary/50 px-2 py-0.5 rounded border border-border/40 inline-block min-w-[28px]"
+          title={`Serial No. ${position || (globalIndex + 1)} in manual catalog order`}
+        >
+          {position || (globalIndex + 1)}
+        </span>
       </td>
 
       {/* Thumbnail (Canonical 3:4 aspect ratio, clean presentation without decorative border or background card) */}
@@ -587,6 +603,24 @@ export default function ProductTableRow({
                     <Edit size={13} />
                     Edit Product
                   </Link>
+                )}
+
+                {can("product.edit") && onSort && (
+                  <button
+                    type="button"
+                    role="menuitem"
+                    id={`btn-sort-product-${product.id}`}
+                    data-testid={`btn-sort-product-${product.id}`}
+                    onClick={() => {
+                      setMenuOpen(false);
+                      onSort(product, position || (globalIndex + 1));
+                    }}
+                    className="flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-foreground hover:bg-secondary transition-colors w-full text-left cursor-pointer"
+                    title={`Sort position for ${product.name}`}
+                  >
+                    <ArrowUpDown size={13} className="text-primary" />
+                    Sort
+                  </button>
                 )}
 
                 {canAdjustStock && onAdjustStock && (

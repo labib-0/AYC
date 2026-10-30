@@ -8,6 +8,8 @@ use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Queue;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\ServiceProvider;
@@ -51,6 +53,91 @@ class AppServiceProvider extends ServiceProvider
             $authz = app(AdminAuthorizationService::class);
             return $authz->can($user, $permissionSlug);
         });
+
+        // ── Queue Worker Release Identity Heartbeat ───────────────────────
+        if ($this->app->runningInConsole()) {
+            // Capture release identity and process credentials ONCE at worker bootstrap.
+            // This locks the worker's reported identity to the immutable release code that booted it,
+            // preventing stale worker processes from adopting candidate identities when mutable symlinks change.
+            $bootedIdentity = \App\Support\ReleaseIdentity::get();
+            $workerPid = (int) getmypid();
+            $workerInstanceId = bin2hex(random_bytes(8));
+            $workerBootedAt = time();
+            $retryAfter = (int) config('queue.connections.redis.retry_after', 90);
+            $busyTtl = $retryAfter + 30; // 120s TTL during active job execution
+            $idleTtl = 60; // 60s TTL during idle loop polling
+
+            $publishHeartbeat = function (string $status, ?string $jobName = null, ?int $jobStartedAt = null) use (
+                $bootedIdentity, $workerPid, $workerInstanceId, $workerBootedAt, $busyTtl, $idleTtl
+            ) {
+                if (empty($bootedIdentity['commit_sha'])) {
+                    return;
+                }
+
+                $now = time();
+                $ttl = $status === 'busy' ? $busyTtl : $idleTtl;
+                $payload = [
+                    'pid' => $workerPid,
+                    'instance_id' => $workerInstanceId,
+                    'commit_sha' => $bootedIdentity['commit_sha'],
+                    'release_id' => $bootedIdentity['release_id'] ?? null,
+                    'build_id' => $bootedIdentity['build_id'] ?? null,
+                    'status' => $status,
+                    'job_name' => $jobName,
+                    'job_started_at' => $jobStartedAt,
+                    'booted_at' => $workerBootedAt,
+                    'recorded_at' => $now,
+                ];
+
+                try {
+                    // 1. Per-worker isolated key for multi-worker safety
+                    Cache::put("ayaan:worker:{$workerPid}", $payload, $ttl);
+
+                    // 2. Register worker PID in active worker registry
+                    $activePids = Cache::get('ayaan:workers:active_pids', []);
+                    if (!is_array($activePids)) {
+                        $activePids = [];
+                    }
+                    if (!in_array($workerPid, $activePids, true)) {
+                        $activePids[] = $workerPid;
+                        Cache::put('ayaan:workers:active_pids', $activePids, 180);
+                    }
+
+                    // 3. Update primary alias key for single-worker compatibility
+                    Cache::put('ayaan:worker:release_identity', $payload, $ttl);
+                } catch (\Throwable $e) {
+                    // Cache write failure must NEVER crash worker loops or abort queue jobs
+                }
+            };
+
+            // 1. Idle polling loop: publish at most once every 5 seconds
+            Queue::looping(function () use ($publishHeartbeat) {
+                static $lastRecorded = 0;
+                $now = time();
+                if ($now - $lastRecorded >= 5) {
+                    $lastRecorded = $now;
+                    $publishHeartbeat('idle');
+                }
+            });
+
+            // 2. Before job processing: transition to 'busy' with extended TTL to cover long-running jobs
+            Queue::before(function ($event) use ($publishHeartbeat) {
+                $jobName = (is_object($event) && isset($event->job) && method_exists($event->job, 'resolveName'))
+                    ? $event->job->resolveName()
+                    : null;
+                $publishHeartbeat('busy', $jobName, time());
+            });
+
+            // 3. After job completion: transition back to 'idle'
+            Queue::after(function () use ($publishHeartbeat) {
+                $publishHeartbeat('idle');
+            });
+
+            // 4. On job failure: transition back to 'idle'
+            Queue::failing(function () use ($publishHeartbeat) {
+                $publishHeartbeat('idle');
+            });
+        }
 
         // ── API Rate Limiters ─────────────────────────────────────────────
         $this->configureRateLimiting();

@@ -1719,6 +1719,31 @@ export class ProductService {
     return this.getProducts({ all: true, isAdmin: true, sort: "manual" });
   }
 
+  /**
+   * Move a product to an exact position in the complete manual product order.
+   * All products between its previous and new positions automatically shift by one.
+   */
+  async moveProductToPosition(
+    id: string | number,
+    targetPosition: number
+  ): Promise<B2BProductInput[]> {
+    if (!isFrontendOnly()) {
+      await apiClient.put(`/products/${id}/position`, { position: targetPosition });
+      if (typeof window !== "undefined") {
+        homepageService.invalidateStorefrontCache();
+        window.dispatchEvent(new CustomEvent("ayaan:homepage-updated"));
+      }
+      return this.getProducts({ all: true, isAdmin: true, sort: "manual" });
+    }
+
+    mockStore.moveProductToPosition(id, targetPosition);
+    if (typeof window !== "undefined") {
+      homepageService.invalidateStorefrontCache();
+      window.dispatchEvent(new CustomEvent("ayaan:homepage-updated"));
+    }
+    return this.getProducts({ all: true, isAdmin: true, sort: "manual" });
+  }
+
   async toggleProductPin(id: string, isPinned?: boolean): Promise<{ success: boolean; is_pinned: boolean }> {
     if (!isFrontendOnly()) {
       const endpoint = isPinned !== undefined
@@ -1756,3 +1781,5 @@ export const toggleProductPin = (id: string, isPinned?: boolean) =>
   productService.toggleProductPin(id, isPinned);
 export const reorderProducts = (orders: Array<{ id: string | number; sort_order: number }> | (string | number)[]) =>
   productService.reorderProducts(orders);
+export const moveProductToPosition = (id: string | number, targetPosition: number) =>
+  productService.moveProductToPosition(id, targetPosition);

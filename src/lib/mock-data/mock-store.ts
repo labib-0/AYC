@@ -338,6 +338,20 @@ class MockStore {
     this.setItem(STORAGE_KEYS.PRODUCTS, products);
   }
 
+  moveProductToPosition(id: string | number, targetPosition: number): void {
+    const products = this.getProducts();
+    const currentIndex = products.findIndex((p) => String(p.id) === String(id));
+    if (currentIndex === -1) return;
+    const targetIndex = Math.max(0, Math.min(products.length - 1, targetPosition - 1));
+    const [moved] = products.splice(currentIndex, 1);
+    products.splice(targetIndex, 0, moved);
+    products.forEach((p, idx) => {
+      p.sort_order = idx + 1;
+      p.sortOrder = idx + 1;
+    });
+    this.setItem(STORAGE_KEYS.PRODUCTS, products);
+  }
+
   // ==========================================
   // CATEGORIES
   // ==========================================

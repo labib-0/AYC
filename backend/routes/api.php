@@ -175,6 +175,10 @@ Route::prefix('v1')->middleware('throttle:api')->group(function () {
                 ->middleware('permission:product.edit');
             Route::post('/reorder', [ProductController::class, 'reorder'])
                 ->middleware('permission:product.edit');
+            Route::match(['put', 'post'], '/{id}/position', [ProductController::class, 'updatePosition'])
+                ->middleware('permission:product.edit');
+            Route::match(['put', 'post'], '/{id}/sort-position', [ProductController::class, 'updatePosition'])
+                ->middleware('permission:product.edit');
             Route::post('/', [ProductController::class, 'store'])
                 ->middleware('permission:product.create');
             Route::put('/{id}', [ProductController::class, 'update'])

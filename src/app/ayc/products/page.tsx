@@ -11,6 +11,7 @@ import {
   deleteProduct,
   togglePublishStatus,
   reorderProducts,
+  moveProductToPosition,
   markProductSoldOut,
 } from "@/lib/services/products";
 import { brandService } from "@/services/brand.service";
@@ -20,6 +21,7 @@ import { toggleProductStorefrontVisibility, toggleProductFeatured, toggleProduct
 import { homepageService } from "@/services/homepage.service";
 import { sortBrandsAlphabetically } from "@/lib/brand-sort";
 import { apiClient } from "@/services/api-client";
+import ProductSortModal from "@/components/admin/products/ProductSortModal";
 
 // Authoritative featured-pin detection (strictly pinned products, independent of promotional tags)
 export const isProductPinned = (p: B2BProductInput): boolean => {
@@ -205,6 +207,12 @@ function AdminProductsContent() {
   // ── Offer Sheet Preview Modal State ──
   const [offerSheetProduct, setOfferSheetProduct] = useState<B2BProductInput | null>(null);
   const [bulkOfferSheetLoading, setBulkOfferSheetLoading] = useState(false);
+
+  // ── Product Position Sort Modal State ──
+  const [isSortModalOpen, setIsSortModalOpen] = useState(false);
+  const [sortModalProduct, setSortModalProduct] = useState<B2BProductInput | null>(null);
+  const [sortModalPosition, setSortModalPosition] = useState<number>(0);
+  const [catalogPositions, setCatalogPositions] = useState<Map<string, number>>(new Map());
 
   const handleViewOfferSheet = useCallback((product: B2BProductInput) => {
     setOfferSheetProduct(product);
@@ -409,6 +417,15 @@ function AdminProductsContent() {
       const orderedCatalog = [...pinnedGroup, ...nonPinnedGroup];
 
       setAllProducts(orderedCatalog);
+
+      // When viewing complete unfiltered catalog, record the authoritative positions
+      if (!hasActiveFilters) {
+        const posMap = new Map<string, number>();
+        orderedCatalog.forEach((p, idx) => {
+          posMap.set(String(p.id), idx + 1);
+        });
+        setCatalogPositions(posMap);
+      }
     } catch (err: unknown) {
       if ((err as any)?.name === "AbortError" || abortController.signal.aborted) {
         return;
@@ -422,6 +439,27 @@ function AdminProductsContent() {
       }
     }
   }, [filters]);
+
+  // Load complete catalog sequence to guarantee accurate positions even when initial view is filtered
+  const loadMasterCatalogPositions = useCallback(async () => {
+    try {
+      const allData = await getProducts({ isAdmin: true, all: true, sort: "manual" });
+      const pinned = allData.filter(isProductPinned);
+      const nonPinned = allData.filter((p) => !isProductPinned(p));
+      const sequence = [...pinned, ...nonPinned];
+      const posMap = new Map<string, number>();
+      sequence.forEach((p, idx) => {
+        posMap.set(String(p.id), idx + 1);
+      });
+      setCatalogPositions(posMap);
+    } catch {
+      // Non-blocking fallback
+    }
+  }, []);
+
+  useEffect(() => {
+    loadMasterCatalogPositions();
+  }, [loadMasterCatalogPositions]);
 
   useEffect(() => {
     loadProducts();
@@ -538,6 +576,57 @@ function AdminProductsContent() {
       await reorder.moveDown(globalIdx);
     },
     [pinnedCount, reorder]
+  );
+
+  // ── Product Position Calculation ──
+  const getProductPosition = useCallback(
+    (product: B2BProductInput, localIndex: number) => {
+      const mapped = catalogPositions.get(String(product.id));
+      if (mapped !== undefined && mapped > 0) return mapped;
+      const so = product.sort_order ?? product.sortOrder ?? (product as any).position;
+      if (typeof so === "number" && so > 0) return so;
+      return startIdx + localIndex + 1;
+    },
+    [catalogPositions, startIdx]
+  );
+
+  const catalogTotal = useMemo(() => {
+    if (!hasActiveFilters && allProducts.length > 0) return allProducts.length;
+    if (catalogPositions.size > 0) return catalogPositions.size;
+    return Number(globalMetrics.total) || allProducts.length;
+  }, [hasActiveFilters, allProducts.length, catalogPositions.size, globalMetrics.total]);
+
+  const sortModalScope = useMemo(() => {
+    if (!sortModalProduct) return { min: 1, max: Math.max(1, catalogTotal) };
+    const isPinned = isProductPinned(sortModalProduct);
+    if (pinnedCount > 0) {
+      if (isPinned) {
+        return { min: 1, max: pinnedCount };
+      } else {
+        return { min: pinnedCount + 1, max: Math.max(pinnedCount + 1, catalogTotal) };
+      }
+    }
+    return { min: 1, max: Math.max(1, catalogTotal) };
+  }, [sortModalProduct, pinnedCount, catalogTotal]);
+
+  const handleOpenSortModal = useCallback((product: B2BProductInput, currentPos: number) => {
+    setSortModalProduct(product);
+    setSortModalPosition(currentPos);
+    setIsSortModalOpen(true);
+  }, []);
+
+  const handleSaveSortPosition = useCallback(
+    async (product: B2BProductInput, newPos: number) => {
+      await moveProductToPosition(product.id, newPos);
+      addToast("success", `Product "${product.name || product.productId}" moved to position ${newPos} successfully.`);
+      await loadMasterCatalogPositions();
+      await loadProducts();
+      if (typeof window !== "undefined") {
+        homepageService.invalidateStorefrontCache();
+        window.dispatchEvent(new CustomEvent("ayaan:homepage-updated"));
+      }
+    },
+    [addToast, loadMasterCatalogPositions, loadProducts]
   );
 
   // ── Status Filter Click from Summary Cards ──
@@ -1083,6 +1172,8 @@ function AdminProductsContent() {
         onAdjustStock={canAdjustStock ? handleOpenRowAdjust : undefined}
         onViewStockHistory={canViewHistory ? handleOpenRowHistory : undefined}
         onViewOfferSheet={handleViewOfferSheet}
+        getProductPosition={getProductPosition}
+        onSortProduct={handleOpenSortModal}
         onRetry={loadProducts}
         onClearFilters={handleClearFilters}
         hasActiveFilters={hasActiveFilters}
@@ -1321,6 +1412,18 @@ function AdminProductsContent() {
           </div>
         </div>
       )}
+
+      {/* Product Position Sort Modal */}
+      <ProductSortModal
+        isOpen={isSortModalOpen}
+        onClose={() => setIsSortModalOpen(false)}
+        product={sortModalProduct}
+        currentPosition={sortModalPosition}
+        totalProducts={catalogTotal}
+        minPosition={sortModalScope.min}
+        maxPosition={sortModalScope.max}
+        onSave={handleSaveSortPosition}
+      />
 
       {/* Toast Notifications */}
       <ProductToast toasts={toasts} onDismiss={dismissToast} />

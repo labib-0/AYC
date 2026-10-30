@@ -21,6 +21,8 @@ interface ProductTableProps {
   onViewStockHistory?: (product: B2BProductInput) => void;
   onMarkSoldOut?: (product: B2BProductInput) => void;
   onViewOfferSheet?: (product: B2BProductInput) => void;
+  getProductPosition?: (product: B2BProductInput, localIndex: number) => number;
+  onSortProduct?: (product: B2BProductInput, currentPosition: number) => void;
   onRetry: () => void;
   onClearFilters: () => void;
   hasActiveFilters: boolean;
@@ -60,6 +62,14 @@ export const PRODUCT_COLUMNS: ColumnDef[] = [
     width: "34px",
     colWidthClass: "w-[34px]",
     thClass: "px-1.5 py-2.5 w-[34px] text-center align-middle",
+  },
+  {
+    key: "serialNo",
+    label: "Serial No.",
+    title: "Position in Catalog Order",
+    width: "70px",
+    colWidthClass: "w-[70px]",
+    thClass: "px-2 py-2.5 w-[70px] text-center align-middle",
   },
   {
     key: "thumbnail",
@@ -176,6 +186,8 @@ export default function ProductTable({
   onViewStockHistory,
   onMarkSoldOut,
   onViewOfferSheet,
+  getProductPosition,
+  onSortProduct,
   onRetry,
   onClearFilters,
   hasActiveFilters,
@@ -199,7 +211,7 @@ export default function ProductTable({
     return (
       <div className="border border-border/60 rounded-xl overflow-hidden bg-card shadow-xs">
         <div className="overflow-x-auto subtle-scrollbar">
-          <table className="w-full min-w-[1415px] table-fixed text-left">
+          <table className="w-full min-w-[1485px] table-fixed text-left">
             <colgroup>
               {PRODUCT_COLUMNS.map((col) => (
                 <col
@@ -233,6 +245,9 @@ export default function ProductTable({
                   </td>
                   <td className="px-1.5 py-3 w-[34px] text-center align-middle" style={{ width: "34px" }}>
                     <div className="w-3.5 h-3.5 rounded bg-secondary animate-pulse mx-auto" />
+                  </td>
+                  <td className="px-2 py-3 w-[70px] text-center align-middle" style={{ width: "70px" }}>
+                    <div className="h-4 w-7 rounded bg-secondary animate-pulse mx-auto" />
                   </td>
                   <td className="px-1.5 py-3 w-[60px] text-center align-middle" style={{ width: "60px" }}>
                     <div className="w-12 h-16 rounded bg-secondary/70 animate-pulse mx-auto" />
@@ -328,7 +343,7 @@ export default function ProductTable({
   return (
     <div className="border border-border/60 rounded-xl overflow-hidden bg-card shadow-xs">
       <div className="overflow-x-auto subtle-scrollbar">
-        <table className="w-full min-w-[1415px] table-fixed text-left">
+        <table className="w-full min-w-[1485px] table-fixed text-left">
           <colgroup>
             {PRODUCT_COLUMNS.map((col) => (
               <col
@@ -378,6 +393,9 @@ export default function ProductTable({
           <tbody data-ordered-container className="divide-y divide-border/40">
             {products.map((product, i) => {
               const globalIndex = startIndex + i;
+              const position = getProductPosition
+                ? getProductPosition(product, i)
+                : (product.sort_order ?? product.sortOrder ?? (globalIndex + 1));
               return (
                 <ProductTableRow
                   key={product.id}
@@ -385,6 +403,7 @@ export default function ProductTable({
                   selected={selectedIds.has(product.id)}
                   globalIndex={globalIndex}
                   localIndex={i}
+                  position={position}
                   showReorderControls={showReorderControls}
                   isReorderDisabled={isReorderDisabled}
                   disabledReason={disabledReason}
@@ -404,6 +423,7 @@ export default function ProductTable({
                   onViewStockHistory={onViewStockHistory}
                   onMarkSoldOut={onMarkSoldOut}
                   onViewOfferSheet={onViewOfferSheet}
+                  onSort={onSortProduct}
                 />
               );
             })}

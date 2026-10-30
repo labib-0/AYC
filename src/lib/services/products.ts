@@ -9,12 +9,13 @@ import {
   PaginatedProductsResult,
   toggleProductStorefrontVisibility,
   reorderProducts,
+  moveProductToPosition,
 } from "@/services/product.service";
 import { B2BProductInput } from "@/types/b2b";
 import { Product } from "@/types";
 import { homepageService } from "@/services/homepage.service";
 
-export { normalizeToB2BProduct, toStorefrontProduct, generateProductSku, toggleProductStorefrontVisibility, reorderProducts };
+export { normalizeToB2BProduct, toStorefrontProduct, generateProductSku, toggleProductStorefrontVisibility, reorderProducts, moveProductToPosition };
 export type { ProductQueryParams, SearchSuggestionsResult, PaginatedProductsResult };
 
 export async function getProducts(options?: ProductQueryParams, signal?: AbortSignal): Promise<B2BProductInput[]> {

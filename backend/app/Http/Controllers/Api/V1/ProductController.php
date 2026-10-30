@@ -18,6 +18,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
 
 use App\Services\Catalog\AdminProductMetricsService;
@@ -1302,6 +1303,10 @@ class ProductController extends ApiController
             // Set purchase_price_updated_at when cost_price > 0 is provided
             if (isset($productData['cost_price']) && (float) $productData['cost_price'] > 0) {
                 $productData['purchase_price_updated_at'] = now();
+            }
+
+            if (empty($productData['sort_order']) || (int) $productData['sort_order'] <= 0) {
+                $productData['sort_order'] = ((int) Product::max('sort_order')) + 1;
             }
 
             $product = Product::create($productData);
@@ -3156,13 +3161,13 @@ class ProductController extends ApiController
                 $safeOrderedIds = array_merge($pinnedIds, $unpinnedIds);
 
                 foreach ($safeOrderedIds as $idx => $id) {
-                    $order = $idx;
+                    $order = $idx + 1;
                     $p = $products->get($id);
                     $isPinned = $p && ($p->is_pinned || $p->is_featured);
 
                     if ($isPinned) {
                         $pinnedIdx = array_search($id, $pinnedIds, true);
-                        $pinnedOrder = $pinnedIdx !== false ? $pinnedIdx + 1 : $order + 1;
+                        $pinnedOrder = $pinnedIdx !== false ? $pinnedIdx + 1 : $order;
                         Product::where('id', $id)->update([
                             'sort_order' => $order,
                             'pinned_order' => $pinnedOrder,
@@ -3187,6 +3192,161 @@ class ProductController extends ApiController
         ActivityLogger::log('product.reorder', null, ['count' => count($validated['orders'] ?? $validated['ids'])]);
 
         return $this->success(null, 'Products reordered successfully');
+    }
+
+    /**
+     * PUT or POST /api/v1/products/{id}/position
+     * Move a product to an exact position in the complete manual product order.
+     * All products between its previous and new positions automatically shift by one.
+     */
+    public function updatePosition(Request $request, string $id): JsonResponse
+    {
+        $user = $request->user();
+        if ($user && !$this->authorization->can($user, 'product.edit')) {
+            return $this->forbidden("Forbidden: you do not have permission to change product positions.");
+        }
+
+        $validator = Validator::make($request->all(), [
+            'position' => ['required', 'integer'],
+        ], [
+            'position.required' => 'Required position is required.',
+            'position.integer' => 'Required position must be an integer.',
+        ]);
+
+        if ($validator->fails()) {
+            return $this->error($validator->errors()->first(), 422);
+        }
+
+        $targetPosition = (int) $request->input('position');
+
+        return DB::transaction(function () use ($id, $targetPosition) {
+            $isPg = DB::connection()->getDriverName() === 'pgsql';
+            $pinnedCond = $isPg
+                ? '(is_pinned IS TRUE OR is_featured IS TRUE)'
+                : '(is_pinned = 1 OR is_featured = 1 OR is_pinned = true OR is_featured = true)';
+
+            // Lock products for update to prevent concurrent race conditions
+            $allProducts = Product::query()
+                ->orderByRaw("CASE WHEN {$pinnedCond} THEN 0 ELSE 1 END ASC")
+                ->orderByRaw("CASE WHEN {$pinnedCond} THEN COALESCE(pinned_order, featured_sort_order, sort_order, 0) ELSE NULL END ASC")
+                ->orderByRaw("CASE WHEN {$pinnedCond} THEN id ELSE NULL END ASC")
+                ->orderBy('sort_order', 'asc')
+                ->orderBy('id', 'desc')
+                ->lockForUpdate()
+                ->get();
+
+            // Find current product in complete sequence
+            $currentIndex = $allProducts->search(fn($p) => (string) $p->id === (string) $id);
+            if ($currentIndex === false) {
+                return $this->notFound("Product not found");
+            }
+
+            $total = $allProducts->count();
+            if ($total === 0) {
+                return $this->error('No products available to position.', 422);
+            }
+
+            $currentPosition = $currentIndex + 1;
+            $targetProduct = $allProducts->get($currentIndex);
+
+            // Validation: range must be between 1 and total count
+            if ($targetPosition < 1 || $targetPosition > $total) {
+                return $this->error("Required position must be between 1 and {$total}.", 422);
+            }
+
+            // Check pinned vs unpinned ordering scope
+            $pinnedCount = $allProducts->filter(fn($p) => (bool) ($p->is_pinned || $p->is_featured))->count();
+            $isTargetPinned = (bool) ($targetProduct->is_pinned || $targetProduct->is_featured);
+
+            if ($pinnedCount > 0) {
+                if ($isTargetPinned && $targetPosition > $pinnedCount) {
+                    return $this->error("Pinned products must be positioned within the pinned group (positions 1 to {$pinnedCount}).", 422);
+                }
+                if (!$isTargetPinned && $targetPosition <= $pinnedCount) {
+                    return $this->error("Unpinned products cannot precede pinned products. Positions 1 to {$pinnedCount} are reserved for pinned products. Please choose a position between " . ($pinnedCount + 1) . " and {$total}.", 422);
+                }
+            }
+
+            // If already at target position, no shift needed
+            if ($currentPosition === $targetPosition) {
+                $this->normalizeCatalogSortOrders($allProducts);
+                return $this->success([
+                    'id' => $id,
+                    'name' => $targetProduct->name,
+                    'previous_position' => $currentPosition,
+                    'current_position' => $targetPosition,
+                    'total_products' => $total,
+                ], "Product '{$targetProduct->name}' is already at position {$targetPosition}.");
+            }
+
+            // Shift products: remove from current index and insert at target index
+            $items = $allProducts->all();
+            $movedItem = array_splice($items, $currentIndex, 1)[0];
+            array_splice($items, $targetPosition - 1, 0, [$movedItem]);
+
+            // Persist normalized 1-based sequential sort_orders
+            $pinnedIndex = 1;
+            foreach ($items as $idx => $prod) {
+                $newPos = $idx + 1;
+                $isPinned = (bool) ($prod->is_pinned || $prod->is_featured);
+
+                $updateData = ['sort_order' => $newPos];
+                if ($isPinned) {
+                    $updateData['pinned_order'] = $pinnedIndex;
+                    $updateData['featured_sort_order'] = $pinnedIndex;
+                    HomepageFeaturedProduct::where('product_id', $prod->id)->update([
+                        'sort_order' => $pinnedIndex,
+                    ]);
+                    $pinnedIndex++;
+                }
+
+                Product::where('id', $prod->id)->update($updateData);
+            }
+
+            CatalogCacheService::invalidateAll();
+            CatalogCacheService::bumpFeaturedVersion();
+            ActivityLogger::log('product.reorder', null, [
+                'product_id' => $id,
+                'from_position' => $currentPosition,
+                'to_position' => $targetPosition,
+            ]);
+
+            return $this->success([
+                'id' => $id,
+                'name' => $movedItem->name,
+                'previous_position' => $currentPosition,
+                'current_position' => $targetPosition,
+                'total_products' => $total,
+            ], "Product '{$movedItem->name}' moved from position {$currentPosition} to position {$targetPosition} successfully.");
+        });
+    }
+
+    /**
+     * Helper to ensure all products in catalog have 1-based sequential sort_orders.
+     */
+    private function normalizeCatalogSortOrders($products): void
+    {
+        $needsNormalization = false;
+        foreach ($products as $idx => $prod) {
+            if ((int) $prod->sort_order !== ($idx + 1)) {
+                $needsNormalization = true;
+                break;
+            }
+        }
+        if ($needsNormalization) {
+            $pinnedIndex = 1;
+            foreach ($products as $idx => $prod) {
+                $newPos = $idx + 1;
+                $isPinned = (bool) ($prod->is_pinned || $prod->is_featured);
+                $updateData = ['sort_order' => $newPos];
+                if ($isPinned) {
+                    $updateData['pinned_order'] = $pinnedIndex;
+                    $updateData['featured_sort_order'] = $pinnedIndex;
+                    $pinnedIndex++;
+                }
+                Product::where('id', $prod->id)->update($updateData);
+            }
+        }
     }
 
     /**

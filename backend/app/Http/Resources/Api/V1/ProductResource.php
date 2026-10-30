@@ -163,6 +163,7 @@ class ProductResource extends JsonResource
             'status' => $this->status ?: 'published',
             'sort_order' => (int) ($this->sort_order ?? 0),
             'sortOrder' => (int) ($this->sort_order ?? 0),
+            'position' => (int) ($this->sort_order ?? 0),
             'isFeatured' => (bool) $this->isFeaturedActive(),
             'is_featured' => (bool) $this->isFeaturedActive(),
             'isPinned' => (bool) $this->isPinnedActive(),
