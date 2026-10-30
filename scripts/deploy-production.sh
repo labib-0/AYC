@@ -893,8 +893,8 @@ JSON
   fi
   cp -p "${NEW_REL_DIR}/RELEASE_METADATA.json" "${NEW_REL_DIR}/backend/RELEASE_METADATA.json"
 
-  if [[ $(id -u) -eq 0 ]]; then
-    chown -R ayaan:ayaan "${NEW_REL_DIR}"
+  if [[ $(id -u) -eq 0 ]] && id -u ayaan &>/dev/null; then
+    chown -R ayaan:ayaan "${NEW_REL_DIR}" 2>/dev/null || true
   fi
   log_success "Candidate release compiled and verified: ${NEW_REL_DIR}"
 }
