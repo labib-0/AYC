@@ -130,12 +130,8 @@ jobs:
 
       - name: Validate Workflow YAML Syntax
         run: |
-          node -e "
-          const fs = require('fs');
-          const yaml = require('js-yaml');
-          const doc = yaml.load(fs.readFileSync('.github/workflows/deploy-production.yml', 'utf8'));
-          console.log('✔ Workflow YAML structurally valid:', doc.name);
-          "
+          npx --yes js-yaml .github/workflows/deploy-production.yml > /dev/null
+          echo "✔ Workflow YAML structurally valid."
 
       - name: Scan Repository for Leaked Keys or Credentials
         run: |
