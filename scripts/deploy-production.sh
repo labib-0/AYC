@@ -745,6 +745,14 @@ build_candidate_release() {
     ln -sfn "${SHARED_DIR}/storage" "${NEW_REL_DIR}/backend/storage"
   fi
 
+  if [[ -d "${APP_DIR}/node_modules" ]]; then
+    ln -sfn "${APP_DIR}/node_modules" "${NEW_REL_DIR}/node_modules"
+  fi
+
+  if [[ -d "${APP_DIR}/backend/vendor" && ! -d "${NEW_REL_DIR}/backend/vendor" ]]; then
+    cp -a "${APP_DIR}/backend/vendor" "${NEW_REL_DIR}/backend/vendor"
+  fi
+
   if [[ -f "${ENV_BACKEND_FILE}" ]]; then
     ln -sfn "${ENV_BACKEND_FILE}" "${NEW_REL_DIR}/backend/.env"
   fi
@@ -753,6 +761,10 @@ build_candidate_release() {
   fi
   if [[ -f "${ENV_LOCAL_FILE}" ]]; then
     ln -sfn "${ENV_LOCAL_FILE}" "${NEW_REL_DIR}/.env.local"
+  fi
+
+  if [[ $(id -u) -eq 0 ]] && id -u ayaan &>/dev/null; then
+    chown -R ayaan:ayaan "${NEW_REL_DIR}" 2>/dev/null || true
   fi
 
   # 5. Compile backend dependencies & Laravel caches inside candidate release
