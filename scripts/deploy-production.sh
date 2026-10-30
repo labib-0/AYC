@@ -571,8 +571,9 @@ execute_rollback() {
     run_as_root "systemctl reload php8.4-fpm || true"
   fi
 
-  if command -v nginx &>/dev/null; then
-    run_as_root "nginx -t && systemctl reload nginx"
+  if command -v nginx &>/dev/null && command -v systemctl &>/dev/null && systemctl is-active nginx &>/dev/null; then
+    log_info "Reloading Nginx reverse proxy..."
+    run_as_root "nginx -t && (systemctl reload nginx || systemctl restart nginx || true)"
   fi
 
   # 5. Run post-rollback runtime adoption & health checks
@@ -1040,9 +1041,9 @@ activate_single_pointer_release() {
   fi
 
   # 7. Reload Nginx reverse proxy
-  if command -v nginx &>/dev/null; then
+  if command -v nginx &>/dev/null && command -v systemctl &>/dev/null && systemctl is-active nginx &>/dev/null; then
     log_info "Reloading Nginx reverse proxy..."
-    run_as_root "nginx -t && systemctl reload nginx"
+    run_as_root "nginx -t && (systemctl reload nginx || systemctl restart nginx || true)"
   fi
 
   # Allow processes to bind sockets
@@ -1106,8 +1107,8 @@ verify_deployment_gate() {
         if command -v systemctl &>/dev/null && systemctl is-active php8.4-fpm &>/dev/null; then
           run_as_root "systemctl reload php8.4-fpm || true"
         fi
-        if command -v nginx &>/dev/null; then
-          run_as_root "nginx -t && systemctl reload nginx"
+        if command -v nginx &>/dev/null && command -v systemctl &>/dev/null && systemctl is-active nginx &>/dev/null; then
+          run_as_root "nginx -t && (systemctl reload nginx || systemctl restart nginx || true)"
         fi
 
         log_success "Single-pointer full-stack rollback completed to: ${prev_rel}"

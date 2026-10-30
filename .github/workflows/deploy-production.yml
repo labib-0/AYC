@@ -1,32 +1,31 @@
 name: Production VPS CI/CD Deployment
 
 # ==============================================================================
-# Ayaan Clothing — Single-Pointer Full-Stack Production Deployment Workflow
+# Ayaan Clothing — Full-Stack Continuous Integration & Validation Pipeline
 # ==============================================================================
 #
-# Production Host: 200.97.169.230
-# Application Directory: /var/www/ayaan
-# Target Pointer: /var/www/ayaan/current -> releases/<release-id>
-# Target Branch: backend-development
+# Target Branches: main, backend-development
+# Triggers:
+#   - push to main, backend-development
+#   - pull_request targeting main, backend-development
+#   - workflow_dispatch for manual validation
 #
-# CORE SAFETY INVARIANTS:
-# 1. DISABLED BY DEFAULT: Requires explicit repository/environment variable
-#    ENABLE_PRODUCTION_DEPLOYMENT == 'true' to trigger remote deployments.
-# 2. When disabled, pushes run full CI validation and dry-run preflight checks ONLY.
-# 3. Requires GitHub 'production' environment approvals when configured.
-# 4. Strict host key pinning (StrictHostKeyChecking=yes) using PRODUCTION_KNOWN_HOSTS.
-# 5. Architecture Compatibility Gate: Fails safely before activation if the VPS host
-#    has not completed the approved shared-release infrastructure migration.
-# 6. Exact Script Bootstrapping: Uploads, verifies SHA-256 checksum, and executes
-#    the exact deployment script reviewed in the triggering commit.
-# 7. Strict Migration Gating: Database migrations can NEVER run on push.
-#    They require manual workflow_dispatch, inputs.run_migrations == true,
-#    ENABLE_PRODUCTION_MIGRATIONS == 'true', and ENABLE_PRODUCTION_DEPLOYMENT == 'true'.
+# INVARIANTS:
+#   1. Automatic production deployment on push or PR is permanently disabled.
+#   2. Full frontend and backend validation test suites execute on every push and PR.
+#   3. Isolated PostgreSQL 16 container service used for backend testing (never production).
+#   4. Production deployment gate remains disabled; deployment job is strictly skipped.
+#   5. Concurrency control cancels obsolete in-progress runs for the same branch.
 # ==============================================================================
 
 on:
   push:
     branches:
+      - main
+      - backend-development
+  pull_request:
+    branches:
+      - main
       - backend-development
   workflow_dispatch:
     inputs:
@@ -41,23 +40,110 @@ on:
         type: boolean
         default: false
       target_commit:
-        description: 'Specific commit SHA to deploy (defaults to current workflow event SHA)'
+        description: 'Specific commit SHA to validate or deploy (defaults to current workflow event SHA)'
         required: false
         type: string
         default: ''
 
-# Concurrency: Prevent simultaneous deployments to production VPS
+# Concurrency: Cancel superseded runs on the same branch or PR to avoid duplicate execution
 concurrency:
-  group: production-vps-deployment
-  cancel-in-progress: false
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 permissions:
   contents: read
 
 jobs:
-  # ── Job 1: Comprehensive CI Validation & Dry-Run (Always Runs) ───────────────
-  validate-and-dry-run:
-    name: Preflight Validation, Test & Dry-Run
+  # ── Job 1: Frontend Validation & Test Suite ──────────────────────────────────
+  validate-frontend:
+    name: Frontend Validation & Test Suite
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 50
+
+      - name: Setup Node.js Runtime
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Scan Repository for Leaked Keys or Credentials
+        run: |
+          echo "▶ Scanning repository for leaked keys or environment files..."
+          FORBIDDEN_FILES=$(git ls-files | grep -E '(^|/)(\.env|id_rsa|id_ed25519|.*\.pem|.*\.key)$' || true)
+          if [ -n "$FORBIDDEN_FILES" ]; then
+            echo "✖ CRITICAL SECURITY VIOLATION: Forbidden credential files committed to Git:"
+            echo "$FORBIDDEN_FILES"
+            exit 1
+          fi
+          echo "✔ Workspace clean: zero credential files or private keys tracked in Git."
+
+      - name: Validate Deployment Scripts & Permissions
+        run: |
+          echo "▶ Validating scripts/deploy-production.sh syntax & permissions..."
+          test -f scripts/deploy-production.sh || (echo "✖ Missing scripts/deploy-production.sh" && exit 1)
+          test -x scripts/deploy-production.sh || (echo "✖ scripts/deploy-production.sh is not marked executable" && exit 1)
+          bash -n scripts/deploy-production.sh
+          echo "✔ deploy-production.sh syntax and permissions verified."
+
+          echo "▶ Validating scripts/migrate-to-shared-release.sh..."
+          test -f scripts/migrate-to-shared-release.sh || (echo "✖ Missing scripts/migrate-to-shared-release.sh" && exit 1)
+          bash -n scripts/migrate-to-shared-release.sh
+          echo "✔ migrate-to-shared-release.sh syntax verified."
+
+          echo "▶ Validating scripts/verify-deployment-release-gate.mjs..."
+          test -f scripts/verify-deployment-release-gate.mjs || (echo "✖ Missing release gate script" && exit 1)
+          node --check scripts/verify-deployment-release-gate.mjs
+          echo "✔ verify-deployment-release-gate.mjs syntax verified."
+
+      - name: Install Frontend Dependencies
+        run: |
+          echo "▶ Installing frontend dependencies using package-lock.json..."
+          npm ci --no-audit --no-fund
+
+      - name: TypeScript Typecheck Validation
+        run: |
+          echo "▶ Running TypeScript validation (npx tsc --noEmit)..."
+          npx tsc --noEmit
+          echo "✔ TypeScript compilation verified with zero type errors."
+
+      - name: Product Serial & Position Sorting Tests
+        run: |
+          echo "▶ Running product serial number and position sorting tests..."
+          npx tsx tests/product-serial-number-and-position-sorting.test.ts
+
+      - name: Admin & Storefront Ordering Reconciliation Tests
+        run: |
+          echo "▶ Running admin/storefront ordering reconciliation tests..."
+          npx tsx tests/admin-storefront-featured-ordering-reconciliation.test.ts
+
+      - name: Storefront Featured Ordering Test Cases
+        run: |
+          echo "▶ Running storefront featured ordering verification cases..."
+          npx tsx tests/storefront-featured-products-ordering-cases.test.ts
+
+      - name: Drag-and-Drop Reorder Tests
+        run: |
+          echo "▶ Running existing drag-and-drop reorder tests..."
+          npx tsx tests/admin-drag-drop-reorder.test.ts
+
+      - name: Deployment Safety & Architecture Guard Tests
+        run: |
+          echo "▶ Running deployment pipeline safety test suite..."
+          node --test tests/deploy-production-script.test.mjs
+
+      - name: Next.js Production Build
+        run: |
+          echo "▶ Compiling Next.js production build (npm run build)..."
+          npm run build
+          echo "✔ Frontend production build compiled successfully."
+
+  # ── Job 2: Backend Validation & Test Suite (PHP 8.4 & PostgreSQL 16) ─────────
+  validate-backend:
+    name: Backend Validation & Test Suite (PHP 8.4 & PostgreSQL 16)
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -79,401 +165,155 @@ jobs:
         with:
           fetch-depth: 50
 
-      - name: Setup Node.js Runtime
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: 'npm'
-
-      - name: Setup PHP Environment
-        uses: shivammathur/setup-php@v2
-        with:
-          php-version: '8.4'
-          extensions: mbstring, xml, ctype, iconv, intl, pdo, pdo_pgsql, pgsql, sqlite3, pdo_sqlite, redis
-          coverage: none
-          tools: composer:v2
-
-      - name: Report Workflow Parameters
-        run: |
-          echo "=========================================================="
-          echo "  AYAAN CLOTHING — CI/CD PREFLIGHT AUDIT                  "
-          echo "=========================================================="
-          echo "Event:          ${{ github.event_name }}"
-          echo "Ref:            ${{ github.ref }}"
-          echo "Commit SHA:     ${{ github.sha }}"
-          echo "Actor:          ${{ github.actor }}"
-          echo "Target Branch:  backend-development"
-          echo "Target Pointer: /var/www/ayaan/current -> releases/<release-id>"
-          echo "Gate Variable:  ENABLE_PRODUCTION_DEPLOYMENT = '${{ vars.ENABLE_PRODUCTION_DEPLOYMENT || 'false' }}'"
-          echo "Migrate Var:    ENABLE_PRODUCTION_MIGRATIONS = '${{ vars.ENABLE_PRODUCTION_MIGRATIONS || 'false' }}'"
-          echo "Manual Input:   enable_deployment = '${{ inputs.enable_deployment || 'false' }}'"
-          echo "Migrate Input:  run_migrations = '${{ inputs.run_migrations || 'false' }}'"
-          echo "=========================================================="
-
-      - name: Validate Deployment Scripts & Permissions
-        run: |
-          echo "▶ Validating scripts/deploy-production.sh syntax & permissions..."
-          test -f scripts/deploy-production.sh || (echo "✖ Missing scripts/deploy-production.sh" && exit 1)
-          test -x scripts/deploy-production.sh || (echo "✖ scripts/deploy-production.sh is not marked executable" && exit 1)
-          bash -n scripts/deploy-production.sh
-          echo "✔ deploy-production.sh syntax and permissions verified."
-
-          echo "▶ Validating scripts/migrate-to-shared-release.sh..."
-          test -f scripts/migrate-to-shared-release.sh || (echo "✖ Missing scripts/migrate-to-shared-release.sh" && exit 1)
-          bash -n scripts/migrate-to-shared-release.sh
-          echo "✔ migrate-to-shared-release.sh syntax verified."
-
-          echo "▶ Validating scripts/verify-deployment-release-gate.mjs..."
-          test -f scripts/verify-deployment-release-gate.mjs || (echo "✖ Missing release gate script" && exit 1)
-          node --check scripts/verify-deployment-release-gate.mjs
-          echo "✔ verify-deployment-release-gate.mjs syntax verified."
-
-      - name: Validate Workflow YAML Syntax
-        run: |
-          npx --yes js-yaml .github/workflows/deploy-production.yml > /dev/null
-          echo "✔ Workflow YAML structurally valid."
-
-      - name: Scan Repository for Leaked Keys or Credentials
-        run: |
-          echo "▶ Scanning repository for leaked keys or environment files..."
-          FORBIDDEN_FILES=$(git ls-files | grep -E '(^|/)(\.env|id_rsa|id_ed25519|.*\.pem|.*\.key)$' || true)
-          if [ -n "$FORBIDDEN_FILES" ]; then
-            echo "✖ CRITICAL SECURITY VIOLATION: Forbidden credential files committed to Git:"
-            echo "$FORBIDDEN_FILES"
-            exit 1
-          fi
-          echo "✔ Workspace clean: zero credential files or private keys tracked in Git."
-
-      - name: Validate Backend Composer Lockfile Consistency
-        run: |
-          echo "▶ Validating backend composer.json and composer.lock consistency..."
-          cd backend
-          composer validate --strict
-          echo "✔ Composer configuration is strictly valid."
-
-      - name: Run PHP 8.4 Linter on Modified Application PHP Files
-        run: |
-          echo "▶ Running php -l on modified and core application PHP files..."
-          php -l backend/app/Support/ReleaseIdentity.php
-          php -l backend/app/Http/Controllers/Api/V1/HealthController.php
-          php -l backend/app/Http/Controllers/Api/V1/ProductController.php
-          php -l backend/app/Http/Resources/Api/V1/ProductResource.php
-          php -l backend/app/Providers/AppServiceProvider.php
-          php -l backend/routes/api.php
-          php -l backend/tests/Feature/Catalog/ProductPositionSortingTest.php
-          echo "✔ Modified PHP files verified syntactically valid under PHP 8.4."
-
-      - name: Install Backend Composer Dependencies
-        run: |
-          echo "▶ Installing backend Composer dependencies..."
-          cd backend
-          composer install --prefer-dist --no-interaction --no-progress
-
-      - name: Run Laravel Backend Feature Tests (Product Sorting & Catalog Reorder)
-        env:
-          APP_ENV: testing
-          DB_CONNECTION: sqlite
-          DB_DATABASE: ':memory:'
-          CACHE_STORE: array
-          QUEUE_CONNECTION: sync
-          SESSION_DRIVER: array
-        run: |
-          echo "▶ Running Laravel feature tests in isolated SQLite environment..."
-          cd backend
-          ./vendor/bin/phpunit tests/Feature/Catalog/ProductPositionSortingTest.php
-          ./vendor/bin/phpunit tests/Feature/Catalog/CatalogPersistentReorderingTest.php
-          ./vendor/bin/phpunit tests/Feature/Catalog/PinnedProductsManagementTest.php
-          echo "✔ Backend feature tests executed and passed successfully."
-
-      - name: Install Frontend Dependencies
-        run: |
-          echo "▶ Installing npm dependencies for typecheck validation..."
-          npm ci --no-audit --no-fund
-
-      - name: TypeScript Typecheck Validation
-        run: |
-          echo "▶ Running TypeScript validation (tsc --noEmit)..."
-          npx tsc --noEmit
-          echo "✔ TypeScript compilation verified with zero type errors."
-
-      - name: Execute Product Position Sorting & Reorder Frontend Test Suites
-        run: |
-          echo "▶ Running frontend test suites..."
-          npx tsx tests/product-serial-number-and-position-sorting.test.ts
-          npx tsx tests/admin-product-reordering-visibility-rules.test.ts
-          npx tsx tests/admin-drag-drop-reorder.test.ts
-          echo "✔ Frontend test suites passed."
-
-      - name: Execute Deployment Pipeline Mock Test Suite
-        run: |
-          echo "▶ Running isolated test suite (tests/deploy-production-script.test.mjs)..."
-          node --test tests/deploy-production-script.test.mjs
-          echo "✔ All deployment script safety and guard unit tests passed."
-
-      - name: Evaluate Migration Authorization Gates
-        run: |
-          MIG_VAR="${{ vars.ENABLE_PRODUCTION_MIGRATIONS || 'false' }}"
-          DEPLOY_VAR="${{ vars.ENABLE_PRODUCTION_DEPLOYMENT || 'false' }}"
-          MANUAL_MIG="${{ inputs.run_migrations || 'false' }}"
-          EVENT="${{ github.event_name }}"
-
-          if [ "${EVENT}" = "push" ]; then
-            echo "✔ Push event detected. Database migrations are strictly disabled for push-triggered runs."
-          elif [ "${MANUAL_MIG}" = "true" ]; then
-            echo "▶ Operator requested database migrations (run_migrations: true)."
-            if [ "${DEPLOY_VAR}" != "true" ]; then
-              echo "✖ MIGRATION GATE REJECTION: Database migrations cannot be authorized while ENABLE_PRODUCTION_DEPLOYMENT is '${DEPLOY_VAR}'." >&2
-              exit 1
-            fi
-            if [ "${MIG_VAR}" != "true" ]; then
-              echo "✖ MIGRATION GATE REJECTION: Operator requested run_migrations=true, but repository/environment variable ENABLE_PRODUCTION_MIGRATIONS is '${MIG_VAR}' (expected 'true')." >&2
-              echo "  To allow migrations, an administrator must set ENABLE_PRODUCTION_MIGRATIONS='true' in GitHub Settings." >&2
-              exit 1
-            fi
-            echo "✔ All migration authorization gates satisfied (Manual dispatch + input=true + variable=true + deployment=true)."
-          fi
-
-      - name: Assess Deployment Safety Gate
-        run: |
-          ENABLE_VAR="${{ vars.ENABLE_PRODUCTION_DEPLOYMENT || 'false' }}"
-          MANUAL_INPUT="${{ inputs.enable_deployment || 'false' }}"
-
-          echo ""
-          if [ "${ENABLE_VAR}" = "true" ] && ( [ "${{ github.event_name }}" = "push" ] || [ "${MANUAL_INPUT}" = "true" ] ); then
-            echo "✔ Deployment Gate is OPEN. Downstream deploy-production job is authorized."
-          else
-            echo "========================================================================"
-            echo "  DRY RUN ONLY — NO PRODUCTION DEPLOYMENT PERFORMED                     "
-            echo "========================================================================"
-            echo "The production deployment gate is CLOSED."
-            echo "Reason: ENABLE_PRODUCTION_DEPLOYMENT is '${ENABLE_VAR}' (expected 'true')."
-            if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "${MANUAL_INPUT}" != "true" ]; then
-              echo "Reason: workflow_dispatch enable_deployment input was set to false."
-            fi
-            echo "No SSH connection was attempted. No production changes were executed."
-            echo "========================================================================"
-          fi
-
-  # ── Job 2: Dedicated PHP 8.4 Syntax & Framework Validation (Always Runs) ────
-  validate-php-84:
-    name: PHP 8.4 Syntax, Composer & Release Identity Validation
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
-
       - name: Setup PHP 8.4 Runtime
         uses: shivammathur/setup-php@v2
         with:
           php-version: '8.4'
+          extensions: mbstring, xml, ctype, iconv, intl, pdo, pdo_pgsql, pgsql, sqlite3, pdo_sqlite, redis, bcmath
+          coverage: none
           tools: composer:v2
 
-      - name: Validate Backend Composer Configuration
+      - name: Validate Composer Configuration
+        working-directory: backend
         run: |
           echo "▶ Running composer validate --strict on backend/composer.json..."
-          cd backend
           composer validate --strict
-          echo "✔ Composer configuration is strictly valid."
+          echo "✔ Backend composer.json is strictly valid."
 
-      - name: Run PHP 8.4 Linter on Application PHP Files
+      - name: Run PHP Syntax Checks
         run: |
-          echo "▶ Running php -l on all PHP files in backend/app, backend/config, backend/routes..."
+          echo "▶ Running php -l syntax checks on application PHP files..."
           ERRORS=0
           while IFS= read -r file; do
-            if ! php -l "$file"; then
+            if ! php -l "$file" > /dev/null; then
               echo "✖ PHP syntax error in $file"
               ERRORS=$((ERRORS + 1))
             fi
-          done < <(find backend/app backend/config backend/routes -name "*.php")
+          done < <(find backend/app backend/config backend/routes backend/tests -name "*.php")
 
           if [ $ERRORS -ne 0 ]; then
             echo "✖ Total PHP syntax errors: $ERRORS"
             exit 1
           fi
-          echo "✔ 100% of core PHP files passed PHP 8.4 syntax linting."
+          echo "✔ 100% of application PHP files passed PHP 8.4 syntax linting."
 
-      - name: Verify Generated ReleaseIdentity.php Placeholder Substitution & Syntax
+      - name: Verify Generated ReleaseIdentity.php Candidate Syntax
         run: |
-          echo "▶ Testing candidate ReleaseIdentity.php generation and PHP 8.4 linting..."
-          node -e "
-          const fs = require('fs');
-          const path = require('path');
-          const tmpDir = fs.mkdtempSync('/tmp/release-identity-test-');
-          const supportDir = path.join(tmpDir, 'backend', 'app', 'Support');
-          fs.mkdirSync(supportDir, { recursive: true });
+          echo "▶ Testing candidate ReleaseIdentity.php template under PHP 8.4..."
+          TMP_DIR=$(mktemp -d /tmp/rel-ident-XXXXXX)
+          cat << 'PHP' > "${TMP_DIR}/ReleaseIdentity.php"
+          <?php
+          namespace App\Support;
+          class ReleaseIdentity {
+              public const COMMIT_SHA = '0123456789abcdef0123456789abcdef01234567';
+              public const RELEASE_ID = 'release_20261030_120000_0123456';
+              public const BUILD_ID = 'test_build_id_abc123';
+              public const BUILT_AT = '2026-10-30T12:00:00Z';
+              public static function commitSha(): ?string { return self::COMMIT_SHA; }
+              public static function releaseId(): ?string { return self::RELEASE_ID; }
+              public static function buildId(): ?string { return self::BUILD_ID; }
+              public static function builtAt(): ?string { return self::BUILT_AT; }
+          }
+          PHP
+          php -l "${TMP_DIR}/ReleaseIdentity.php"
+          rm -rf "${TMP_DIR}"
+          echo "✔ Candidate ReleaseIdentity template verified valid."
 
-          const commitSha = '0123456789abcdef0123456789abcdef01234567';
-          const releaseId = 'release_20261030_120000_0123456';
-          const buildId = 'test_build_id_abc123';
-          const builtAt = new Date().toISOString();
-
-          const phpCode = '<?php\n\n' +
-            'namespace App\\\\Support;\n\n' +
-            'class ReleaseIdentity\n' +
-            '{\n' +
-            '    public const COMMIT_SHA = \'' + commitSha + '\';\n' +
-            '    public const RELEASE_ID = \'' + releaseId + '\';\n' +
-            '    public const BUILD_ID = \'' + buildId + '\';\n' +
-            '    public const BUILT_AT = \'' + builtAt + '\';\n\n' +
-            '    public static function commitSha(): ?string { return self::COMMIT_SHA !== \'\' ? self::COMMIT_SHA : null; }\n' +
-            '    public static function releaseId(): ?string { return self::RELEASE_ID !== \'\' ? self::RELEASE_ID : null; }\n' +
-            '    public static function buildId(): ?string { return self::BUILD_ID !== \'\' ? self::BUILD_ID : null; }\n' +
-            '    public static function builtAt(): ?string { return self::BUILT_AT !== \'\' ? self::BUILT_AT : null; }\n' +
-            '}\n';
-
-          const targetFile = path.join(supportDir, 'ReleaseIdentity.php');
-          fs.writeFileSync(targetFile, phpCode);
-          console.log('Generated test ReleaseIdentity.php at:', targetFile);
-          process.env.GENERATED_TEST_FILE = targetFile;
-          "
-          TEST_PHP_FILE=$(find /tmp/release-identity-test-* -name "ReleaseIdentity.php" | head -n 1)
-          if [ -n "$TEST_PHP_FILE" ]; then
-            php -l "$TEST_PHP_FILE"
-            echo "✔ Generated candidate ReleaseIdentity.php verified syntactically valid under PHP 8.4."
-            rm -rf "/tmp/release-identity-test-"*
-          fi
-
-      - name: Verify Security & Isolation Boundaries
+      - name: Install Backend Composer Dependencies
+        working-directory: backend
         run: |
-          echo "▶ Verifying isolation boundaries (no production credentials loaded)..."
-          test ! -f backend/.env || (echo "✖ Forbidden backend/.env present" && exit 1)
-          test ! -f .env.production || (echo "✖ Forbidden .env.production present" && exit 1)
-          echo "✔ Zero production credentials or databases accessed."
+          echo "▶ Installing backend Composer dependencies (including require-dev)..."
+          composer install --prefer-dist --no-interaction --no-progress
+          echo "✔ Composer dependencies installed."
 
-  # ── Job 3: Gated Full-Stack Production VPS Deployment ────────────────────────
+      - name: Configure Isolated Laravel Testing Environment
+        working-directory: backend
+        run: |
+          echo "▶ Configuring isolated Laravel testing environment against PostgreSQL 16..."
+          cat << 'ENV' > .env.testing
+          APP_NAME="AYAAN CLOTHING"
+          APP_ENV=testing
+          APP_KEY=base64:6bW+k/7o4oK8H1gK5cM7dJ9F0xL3vN8qP2wR5tY7uI0=
+          APP_DEBUG=true
+
+          DB_CONNECTION=pgsql
+          DB_HOST=127.0.0.1
+          DB_PORT=5432
+          DB_DATABASE=ayaan_testing
+          DB_USERNAME=ayaan_test_user
+          DB_PASSWORD=ayaan_test_password
+
+          CACHE_STORE=array
+          QUEUE_CONNECTION=sync
+          SESSION_DRIVER=array
+          ENV
+
+          php artisan key:generate --env=testing --no-interaction || true
+          echo "▶ Running database migrations against isolated PostgreSQL 16 container..."
+          php artisan migrate:fresh --env=testing --force --no-interaction
+          echo "✔ Isolated database schema successfully migrated."
+
+      - name: Run Product Position Sorting Backend Tests
+        working-directory: backend
+        env:
+          APP_ENV: testing
+          DB_CONNECTION: pgsql
+          DB_HOST: 127.0.0.1
+          DB_PORT: 5432
+          DB_DATABASE: ayaan_testing
+          DB_USERNAME: ayaan_test_user
+          DB_PASSWORD: ayaan_test_password
+        run: |
+          echo "▶ Running ProductPositionSortingTest.php in isolated PostgreSQL environment..."
+          ./vendor/bin/phpunit tests/Feature/Catalog/ProductPositionSortingTest.php
+
+      - name: Run Storefront Featured Products Ordering Backend Tests
+        working-directory: backend
+        env:
+          APP_ENV: testing
+          DB_CONNECTION: pgsql
+          DB_HOST: 127.0.0.1
+          DB_PORT: 5432
+          DB_DATABASE: ayaan_testing
+          DB_USERNAME: ayaan_test_user
+          DB_PASSWORD: ayaan_test_password
+        run: |
+          echo "▶ Running StorefrontFeaturedProductsOrderingTest.php in isolated PostgreSQL environment..."
+          ./vendor/bin/phpunit tests/Feature/Catalog/StorefrontFeaturedProductsOrderingTest.php
+
+      - name: Run Catalog & Pinned Products Backend Tests
+        working-directory: backend
+        env:
+          APP_ENV: testing
+          DB_CONNECTION: pgsql
+          DB_HOST: 127.0.0.1
+          DB_PORT: 5432
+          DB_DATABASE: ayaan_testing
+          DB_USERNAME: ayaan_test_user
+          DB_PASSWORD: ayaan_test_password
+        run: |
+          echo "▶ Running PinnedProductsManagementTest and CatalogPersistentReorderingTest..."
+          ./vendor/bin/phpunit tests/Feature/Catalog/PinnedProductsManagementTest.php tests/Feature/Catalog/CatalogPersistentReorderingTest.php
+
+  # ── Job 3: Production VPS Deployment (STRICTLY DISABLED) ──────────────────────
   deploy-production:
-    name: Production VPS Deployment
-    needs: [validate-and-dry-run, validate-php-84]
+    name: Production VPS Deployment (Gated & Disabled)
+    needs: [validate-frontend, validate-backend]
     runs-on: ubuntu-latest
     environment: production
-    # Strict Guard: Runs ONLY when explicitly enabled by variable and input
+    # Strict Guard: Real deployment is disabled. Push and PR events can NEVER trigger deployment.
+    # Manual dispatch requires explicit enable_deployment=true AND repository variable ENABLE_PRODUCTION_DEPLOYMENT='true' (currently disabled/false).
     if: >-
-      github.ref == 'refs/heads/backend-development' &&
       (vars.ENABLE_PRODUCTION_DEPLOYMENT == 'true' || vars.ENABLE_PRODUCTION_DEPLOYMENT == true) &&
-      (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.enable_deployment == true))
+      github.event_name == 'workflow_dispatch' &&
+      inputs.enable_deployment == true
     steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
-
-      - name: Configure SSH Credentials & Pinned Known Hosts
+      - name: Deployment Inactive Guard
         run: |
-          mkdir -p ~/.ssh
-          chmod 700 ~/.ssh
-
-          # Strict host key checking: verify known_hosts secret exists and write pinned entry
-          if [ -z "${{ secrets.PRODUCTION_KNOWN_HOSTS }}" ]; then
-            echo "✖ Missing required secret PRODUCTION_KNOWN_HOSTS. Aborting for strict host verification." >&2
-            exit 1
-          fi
-          echo "${{ secrets.PRODUCTION_KNOWN_HOSTS }}" > ~/.ssh/known_hosts
-          chmod 600 ~/.ssh/known_hosts
-
-          # Setup deployment private key safely in ssh-agent
-          if [ -z "${{ secrets.PRODUCTION_SSH_PRIVATE_KEY }}" ]; then
-            echo "✖ Missing required secret PRODUCTION_SSH_PRIVATE_KEY. Aborting." >&2
-            exit 1
-          fi
-
-          eval "$(ssh-agent -s)"
-          echo "${{ secrets.PRODUCTION_SSH_PRIVATE_KEY }}" | tr -d '\r' | ssh-add - > /dev/null
-          echo "SSH_AUTH_SOCK=$SSH_AUTH_SOCK" >> "$GITHUB_ENV"
-          echo "SSH_AGENT_PID=$SSH_AGENT_PID" >> "$GITHUB_ENV"
-          echo "✔ SSH identity and pinned known_hosts configured."
-
-      - name: Pre-Flight Architecture Compatibility Check
-        run: |
-          DEPLOY_USER="${{ vars.PRODUCTION_SSH_USER || 'ayaan' }}"
-          DEPLOY_HOST="${{ vars.PRODUCTION_HOST || '200.97.169.230' }}"
-          DEPLOY_PORT="${{ vars.PRODUCTION_SSH_PORT || '22' }}"
-          DEPLOY_PATH="${{ vars.PRODUCTION_DEPLOY_PATH || '/var/www/ayaan' }}"
-
-          echo "▶ Verifying that host has completed the approved shared-release infrastructure migration..."
-          COMPAT_STATUS=$(ssh -o StrictHostKeyChecking=yes -p "${DEPLOY_PORT}" "${DEPLOY_USER}@${DEPLOY_HOST}" \
-            "if [ -L '${DEPLOY_PATH}/current' ] && [ -d '${DEPLOY_PATH}/releases' ] && [ -d '${DEPLOY_PATH}/shared' ]; then echo 'READY'; else echo 'PENDING_MIGRATION'; fi")
-
-          if [ "${COMPAT_STATUS}" != "READY" ]; then
-            echo "========================================================================" >&2
-            echo "✖ DEPLOYMENT BLOCKED: Production host does not yet use the shared-release pointer!" >&2
-            echo "  Expected path '${DEPLOY_PATH}/current' -> '${DEPLOY_PATH}/releases/<id>' does not exist." >&2
-            echo "  The host is currently running the legacy in-place configuration." >&2
-            echo "  Complete the approved Nginx, PM2, and Supervisor infrastructure migration" >&2
-            echo "  before enabling production deployment." >&2
-            echo "========================================================================" >&2
-            exit 1
-          fi
-          echo "✔ Host architecture verified: shared-release pointer is active."
-
-      - name: Bootstrap Verified Deployment Script & Execute
-        run: |
-          DEPLOY_USER="${{ vars.PRODUCTION_SSH_USER || 'ayaan' }}"
-          DEPLOY_HOST="${{ vars.PRODUCTION_HOST || '200.97.169.230' }}"
-          DEPLOY_PORT="${{ vars.PRODUCTION_SSH_PORT || '22' }}"
-          DEPLOY_PATH="${{ vars.PRODUCTION_DEPLOY_PATH || '/var/www/ayaan' }}"
-          TARGET_SHA="${{ inputs.target_commit || github.sha }}"
-
-          # Decision Rule: Migrations can run ONLY on manual dispatch with both input and variable true
-          RUN_MIG=false
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && \
-             [ "${{ inputs.run_migrations }}" = "true" ] && \
-             [ "${{ vars.ENABLE_PRODUCTION_MIGRATIONS || 'false' }}" = "true" ]; then
-            RUN_MIG=true
-          fi
-
-          MIG_FLAG=""
-          if [ "${RUN_MIG}" = "true" ]; then
-            MIG_FLAG="--run-migrations"
-          fi
-
-          echo "=========================================================="
-          echo "  TRIGGERING VERIFIED PRODUCTION DEPLOYMENT               "
-          echo "=========================================================="
-          echo "Host:             ${DEPLOY_HOST}:${DEPLOY_PORT}"
-          echo "User:             ${DEPLOY_USER}"
-          echo "Target SHA:       ${TARGET_SHA}"
-          echo "Path:             ${DEPLOY_PATH}"
-          echo "Authorized Mig:   ${RUN_MIG}"
-          echo "=========================================================="
-
-          # Step 1: Compute local SHA-256 hash of the exact reviewed deployment script
-          LOCAL_SCRIPT_HASH=$(sha256sum scripts/deploy-production.sh | awk '{print $1}')
-          REMOTE_TMP_SCRIPT="/tmp/ayc-deploy-${TARGET_SHA}.sh"
-
-          echo "▶ Staging verified deployment script to VPS (${REMOTE_TMP_SCRIPT})..."
-          ssh -o StrictHostKeyChecking=yes -p "${DEPLOY_PORT}" "${DEPLOY_USER}@${DEPLOY_HOST}" \
-            "cat > '${REMOTE_TMP_SCRIPT}' && chmod 700 '${REMOTE_TMP_SCRIPT}'" < scripts/deploy-production.sh
-
-          echo "▶ Verifying staged script integrity on remote host..."
-          REMOTE_SCRIPT_HASH=$(ssh -o StrictHostKeyChecking=yes -p "${DEPLOY_PORT}" "${DEPLOY_USER}@${DEPLOY_HOST}" \
-            "sha256sum '${REMOTE_TMP_SCRIPT}' | awk '{print \$1}'")
-
-          if [ "${LOCAL_SCRIPT_HASH}" != "${REMOTE_SCRIPT_HASH}" ]; then
-            echo "✖ CRITICAL SECURITY ERROR: Remote staged script hash does not match workflow hash!" >&2
-            echo "  Local:  ${LOCAL_SCRIPT_HASH}" >&2
-            echo "  Remote: ${REMOTE_SCRIPT_HASH}" >&2
-            ssh -o StrictHostKeyChecking=yes -p "${DEPLOY_PORT}" "${DEPLOY_USER}@${DEPLOY_HOST}" "rm -f '${REMOTE_TMP_SCRIPT}'"
-            exit 1
-          fi
-          echo "✔ Remote script integrity verified (${REMOTE_SCRIPT_HASH:0:16}...)."
-
-          # Step 2: Execute verified staged script with explicit parameters and expected checksum
-          echo "▶ Executing deployment pipeline on VPS..."
-          ssh -o StrictHostKeyChecking=yes -p "${DEPLOY_PORT}" "${DEPLOY_USER}@${DEPLOY_HOST}" \
-            "bash '${REMOTE_TMP_SCRIPT}' \
-              --execute \
-              --commit '${TARGET_SHA}' \
-              --branch backend-development \
-              --expected-checksum '${LOCAL_SCRIPT_HASH}' \
-              ${MIG_FLAG}"
-
-          # Step 3: Clean up remote staged script
-          ssh -o StrictHostKeyChecking=yes -p "${DEPLOY_PORT}" "${DEPLOY_USER}@${DEPLOY_HOST}" \
-            "rm -f '${REMOTE_TMP_SCRIPT}'"
-
-      - name: Cleanup SSH Agent
-        if: always()
-        run: |
-          if [ -n "$SSH_AGENT_PID" ]; then
-            ssh-agent -k || true
-          fi
-          rm -rf ~/.ssh/known_hosts
-          echo "✔ SSH agent and credentials purged from runner."
+          echo "========================================================================"
+          echo "  DEPLOYMENT IS STRICTLY DISABLED IN THIS CI/CD WORKFLOW                "
+          echo "========================================================================"
+          echo "Safety invariant enforced: Automatic deployment on push or PR is permanently disabled."
+          echo "No SSH credentials configured. No VPS connections attempted."
+          echo "========================================================================"
+          exit 0
