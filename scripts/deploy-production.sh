@@ -474,18 +474,21 @@ handover_queue_workers() {
     fi
     log_success "Prior queue worker (PID ${old_pid}) finished active work and exited in ${elapsed}s."
 
-    # 3. Signal supervisor to restart/spawn replacement worker on new release
+    # 3. Wait for supervisor to spawn replacement worker (autorestart=true) or trigger start
     log_info "Verifying Supervisor spawns replacement worker on new release..."
-    supervisorctl restart ayaan-worker &>/dev/null || supervisorctl start ayaan-worker &>/dev/null || true
     local new_pid=""
     local spawn_elapsed=0
 
-    while [[ ${spawn_elapsed} -lt 10 ]]; do
+    while [[ ${spawn_elapsed} -lt 15 ]]; do
       new_pid=$(supervisorctl pid ayaan-worker 2>/dev/null || true)
-      if [[ -n "${new_pid}" && "${new_pid}" =~ ^[0-9]+$ && "${new_pid}" != "${old_pid}" ]]; then
+      local current_st
+      current_st=$(supervisorctl status ayaan-worker 2>/dev/null || true)
+      if [[ -n "${new_pid}" && "${new_pid}" =~ ^[0-9]+$ && "${new_pid}" != "${old_pid}" && "${current_st}" =~ RUNNING ]]; then
         break
       fi
-      supervisorctl restart ayaan-worker &>/dev/null || supervisorctl start ayaan-worker &>/dev/null || true
+      if [[ "${current_st}" =~ STOPPED ]]; then
+        supervisorctl start ayaan-worker &>/dev/null || true
+      fi
       sleep 1
       spawn_elapsed=$((spawn_elapsed + 1))
     done
