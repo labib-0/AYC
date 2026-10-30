@@ -487,7 +487,7 @@ handover_queue_workers() {
         break
       fi
       if [[ "${current_st}" =~ STOPPED ]]; then
-        supervisorctl start ayaan-worker &>/dev/null || true
+        supervisorctl start ayaan-worker &>/dev/null || supervisorctl restart ayaan-worker &>/dev/null || true
       fi
       sleep 1
       spawn_elapsed=$((spawn_elapsed + 1))

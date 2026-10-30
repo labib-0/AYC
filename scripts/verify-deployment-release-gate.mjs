@@ -397,8 +397,26 @@ function verifySupervisorWorker() {
       try {
         if (fs.existsSync(`/proc/${workerPid}/cwd`)) {
           const realCwd = fs.readlinkSync(`/proc/${workerPid}/cwd`);
-          const expectedCwd = process.env.DEPLOY_EXPECTED_CWD || "/var/www/ayaan/current";
-          if (!realCwd.includes("current") && !realCwd.includes(expectedCwd)) {
+          const expectedCwd = process.env.DEPLOY_EXPECTED_CWD || process.env.DEPLOY_CURRENT_PATH || "/var/www/ayaan/current";
+          let expectedRealCwd = "";
+          try {
+            expectedRealCwd = fs.realpathSync(expectedCwd);
+          } catch {}
+
+          let procArgs = "";
+          try {
+            procArgs = execSync(`ps -p ${workerPid} -o args=`, { encoding: "utf-8", timeout: 5000, stdio: ["pipe", "pipe", "pipe"] }).trim();
+          } catch {}
+
+          const hasArtisanInCurrent = procArgs.includes("/var/www/ayaan/current") || (expectedRealCwd && procArgs.includes(expectedRealCwd));
+
+          const isValidCwd =
+            (expectedRealCwd && (realCwd === expectedRealCwd || realCwd.startsWith(expectedRealCwd))) ||
+            realCwd.includes("current") ||
+            realCwd.includes(expectedCwd) ||
+            (realCwd === "/" && hasArtisanInCurrent);
+
+          if (!isValidCwd) {
             throw new Error(`Worker PID ${workerPid} cwd '${realCwd}' is obsolete (expected '${expectedCwd}')`);
           }
         }
