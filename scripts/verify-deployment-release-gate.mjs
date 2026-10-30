@@ -33,6 +33,7 @@ const ROUTES_TO_AUDIT = [
   { path: "/dashboard/rfq", name: "Customer Dashboard RFQ", isAdmin: false },
   { path: "/ayc", name: "Admin Portal Gateway", isAdmin: true },
   { path: "/ayc/rfq", name: "Admin RFQ Management", isAdmin: true },
+  { path: "/ayc/products", name: "Admin Product Catalogue", isAdmin: true },
 ];
 
 function fetchEndpoint(urlStr, headers = {}, timeoutMs = 8000) {
@@ -139,10 +140,36 @@ async function verifyPm2Processes() {
         throw new Error(`PM2 process '${appName}' status is '${proc.pm2_env?.status}' (expected 'online')`);
       }
       // Verify PM2 process has adopted the single-pointer working directory
-      const expectedCwd = process.env.DEPLOY_EXPECTED_CWD || "/var/www/ayaan/current";
+      const expectedCwd = process.env.DEPLOY_EXPECTED_CWD || process.env.DEPLOY_CURRENT_PATH || "/var/www/ayaan/current";
+      let expectedRealCwd = "";
+      try {
+        expectedRealCwd = fs.realpathSync(expectedCwd);
+      } catch {}
+
       if (proc.pm2_env?.pm_cwd && (process.env.VERIFY_PM2_CWD === "true" || process.env.VERIFY_PM2_CWD === "1")) {
-        if (!proc.pm2_env.pm_cwd.includes("current") && !proc.pm2_env.pm_cwd.includes(expectedCwd)) {
+        const pmCwd = proc.pm2_env.pm_cwd;
+        const isValidPmCwd =
+          pmCwd.includes("current") ||
+          pmCwd.includes(expectedCwd) ||
+          (expectedRealCwd && (pmCwd === expectedRealCwd || pmCwd.startsWith(expectedRealCwd)));
+        if (!isValidPmCwd) {
           throw new Error(`PM2 process '${appName}' running in obsolete directory: '${proc.pm2_env.pm_cwd}' (expected '${expectedCwd}')`);
+        }
+      }
+
+      // Check Linux proc cwd if process PID is available
+      if (proc.pid && fs.existsSync(`/proc/${proc.pid}/cwd`)) {
+        try {
+          const realCwd = fs.readlinkSync(`/proc/${proc.pid}/cwd`);
+          const isValidProcCwd =
+            realCwd.includes("current") ||
+            realCwd.includes(expectedCwd) ||
+            (expectedRealCwd && (realCwd === expectedRealCwd || realCwd.startsWith(expectedRealCwd)));
+          if (!isValidProcCwd) {
+            throw new Error(`PM2 process '${appName}' (PID ${proc.pid}) running in obsolete directory: '${realCwd}' (expected '${expectedCwd}')`);
+          }
+        } catch (procErr) {
+          if (procErr.message.includes("obsolete directory")) throw procErr;
         }
       }
     }

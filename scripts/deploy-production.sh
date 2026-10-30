@@ -595,6 +595,8 @@ execute_rollback() {
          DEPLOY_EXPECTED_RELEASE_ID="${prev_release}" \
          DEPLOY_EXPECTED_COMMIT="${rollback_commit}" \
          DEPLOY_CURRENT_PATH="${CURRENT_LINK}" \
+         DEPLOY_EXPECTED_CWD="${CURRENT_LINK}" \
+         VERIFY_PM2_CWD="true" \
          node "${gate_script}"; then
       log_error "ROLLBACK ADOPTION FAILED: Restored release failed runtime verification!"
       exit 1
@@ -1024,8 +1026,8 @@ activate_single_pointer_release() {
   # 4. Reload daemons on new pointer with updated environment
   if command -v pm2 &>/dev/null; then
     log_info "Reloading PM2 Next.js daemons with updated release environment (--update-env)..."
-    run_as_app_user "pm2 reload ayaan-customer --update-env"
-    run_as_app_user "pm2 reload ayaan-admin --update-env"
+    run_as_app_user "cd ${CURRENT_LINK} && pm2 reload ayaan-customer --update-env || pm2 restart ayaan-customer --update-env"
+    run_as_app_user "cd ${CURRENT_LINK} && pm2 reload ayaan-admin --update-env || pm2 restart ayaan-admin --update-env"
   fi
 
   # 5. Graceful Laravel queue worker drain and Supervisor handover
@@ -1074,6 +1076,8 @@ verify_deployment_gate() {
        DEPLOY_EXPECTED_RELEASE_ID="${NEW_REL_ID}" \
        DEPLOY_EXPECTED_COMMIT="${CURRENT_GIT_COMMIT}" \
        DEPLOY_CURRENT_PATH="${CURRENT_LINK}" \
+       DEPLOY_EXPECTED_CWD="${CURRENT_LINK}" \
+       VERIFY_PM2_CWD="true" \
        DEPLOY_PRIOR_WORKER_PID="${DEPLOY_PRIOR_WORKER_PID:-${PRIOR_WORKER_PID:-}}" \
        node "${gate_script}"; then
     log_error "RELEASE GATE FAILED: Post-switch verification encountered errors!"
@@ -1123,6 +1127,8 @@ verify_deployment_gate() {
                DEPLOY_EXPECTED_RELEASE_ID="${prev_rel}" \
                DEPLOY_EXPECTED_COMMIT="${rollback_commit}" \
                DEPLOY_CURRENT_PATH="${CURRENT_LINK}" \
+               DEPLOY_EXPECTED_CWD="${CURRENT_LINK}" \
+               VERIFY_PM2_CWD="true" \
                node "${gate_script}"; then
             log_error "CRITICAL: Rollback release runtime adoption failed! Previous release did not pass release gate!"
             exit 1
